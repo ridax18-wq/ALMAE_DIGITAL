@@ -25,12 +25,12 @@ test.describe("FASE 1 — portal comercial", () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test("el botón Agendar cita conduce a la página en preparación", async ({ page }) => {
+  test("el botón Agendar cita conduce al wizard de reserva", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: "Agendar cita" }).first().click();
     await expect(page).toHaveURL(/\/reservar$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Reservas en línea",
+      "Reserva tu cita",
     );
   });
 

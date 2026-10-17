@@ -212,3 +212,43 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - Ninguna clave local/publicada en docs ni código versionado (verificado con `git grep`).
 - Comandos de setup documentados y multiplataforma (Node `--env-file`, npm scripts sin dependencia de shell).
 - Carpeta `Imagenes/` del propietario excluida del repo (contiene fotos de pacientes sin consentimiento publicado; ver FASE 1).
+
+---
+
+## FASE 3 — Motor de disponibilidad y reservas
+
+**Fecha:** 2026-10-17
+**Estado:** ✅ Completada
+
+### Entregables
+
+- **Motor de disponibilidad puro** (`src/lib/services/availability.ts`): slots por fecha con horario laboral, descansos, duración+prep, gap, ocupaciones y antelación; timestamps UTC con offset fijo Lima (sin DST). `slotSigueDisponible` revalida server-side antes de la RPC.
+- **Migración `0006_funciones_reservas.sql`**:
+  - `crear_reserva_con_hold()` — RPC transaccional security-definer: valida servicio/variante activos (solo consultorio), ventana de fechas (lead/horizonte), horario laboral + descanso, excepciones de agenda (full_day/partial/holiday), **gap con margen alrededor de ocupaciones**, advisory lock por servicio+fecha (serializa la carrera), upsert de paciente por teléfono con consentimiento diferenciado, idempotencia (misma cita vigente se devuelve sin duplicar), token de 256 bits y `expires_at` según configuración.
+  - `obtener_reserva_por_token()` — consulta limitada (sin datos de terceros) + `puede_cancelar` calculado en servidor.
+  - `cancelar_reserva_por_token()` — HELD siempre; CONFIRMED solo dentro del plazo de política.
+  - `expirar_holds()` — marca EXPIRED los holds/pagos vencidos (CRON/lazy).
+  - Privilegios: RPCs de paciente `anon`; `expirar_holds` solo service-role.
+- **Corrección de diseño en 0002**: `profesional_clave` generada (coalesce) para que la exclusión gist no eluda el solapamiento cuando `professional_id` es NULL.
+- **Servicios server-side**: `disponibilidad.ts` (ensambla settings/horas/excepciones/ocupaciones con service-role), `reservas.ts` (mensajes amigables es-PE), `rate-limit.ts` (memoria, por IP+acción; Upstash opcional).
+- **API**: `GET /api/disponibilidad` (Zod + 60 req/min/IP, no-store) y `POST /api/reservas` (Zod estricto: teléfono 9 dígitos, consent requerido, 5 req/min/IP; 409 con mensaje claro).
+- **UI `/reservar`**: wizard de 3 pasos (servicio → fecha/hora con slots reales → datos con consentimiento) con estados de carga y error; catálogo leído de la BD (sin configuración muestra aviso, nunca datos falsos).
+- **UI `/reserva/[token]`**: estado real, fecha/hora Lima formateadas, precios, saldo, cancelación según política, contacto WhatsApp, aviso de pago en preparación (Fase 4).
+- **CRON**: `POST /api/cron/expire-holds` con `Authorization: Bearer CRON_SECRET`.
+
+### Pruebas ejecutadas (reales)
+
+| Prueba | Resultado |
+|---|---|
+| Vitest motor (10 pruebas: horario, cerrado, descansos, gap, lead, horizonte, zona horaria, validación de slot) | ✅ 10/10 |
+| `scripts/probar-motor.mjs` contra RPC real: **concurrencia** (5 POST simultáneos mismo slot → exactamente 1 gana, 4 rechazadas) | ✅ |
+| Token válido → HELD; token inválido → no encontrado; expiración manual → `EXPIRED` y slot liberado | ✅ |
+| lint / typecheck / build | ✅ / ✅ / ✅ |
+| Playwright: **flujo completo de reserva** (wizard → hold → token page → cancelar) | ✅ **13/13** total |
+
+### Pendientes
+
+1. Conectar proyecto Supabase real (FASE 2, acumulado).
+2. Recordatorios/notificaciones (Fase 8).
+3. Vista semanal/mensual de agenda (Fase 6).
+4. Pago real del adelanto para CONFIRMED (Fase 4 — la cita queda HELD hasta entonces, por diseño).

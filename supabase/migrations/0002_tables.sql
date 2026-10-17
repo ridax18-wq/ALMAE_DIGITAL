@@ -201,10 +201,17 @@ create index bookings_patient_id_idx on bookings (patient_id);
 create index bookings_service_id_idx on bookings (service_id);
 create index bookings_status_idx on bookings (status);
 
+-- Clave estable para la exclusión: evita que NULL profesional eluda el
+-- solapamiento (NULL = NULL no coincide en la comparación gist).
+alter table bookings
+  add column profesional_clave text generated always as (
+    coalesce(professional_id::text, 'unico')
+  ) stored;
+
 alter table bookings
   add constraint bookings_no_overlap
   exclude using gist (
-    professional_id with =,
+    profesional_clave with =,
     hold_range with &&
   )
   where (status in ('HELD', 'PENDING_PAYMENT', 'CONFIRMED'));
