@@ -98,6 +98,12 @@ test.describe("FASE 1 — portal comercial", () => {
     await expect(flotante).toBeVisible();
   });
 
+  test("el acceso administrativo redirige a login sin sesión", async ({ request }) => {
+    const respuesta = await request.get("/admin");
+    expect(respuesta.ok()).toBeTruthy();
+    expect(new URL(respuesta.url()).pathname).toBe("/admin/login");
+  });
+
   test("capturas responsive del portal", async ({ page }, testInfo) => {
     for (const ancho of [375, 768, 1440]) {
       await page.setViewportSize({ width: ancho, height: 900 });

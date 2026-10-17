@@ -4,7 +4,7 @@ Plataforma web comercial y operativa para **ALMAE**, consultorio de fisioterapia
 
 Convierte prospectos captados por grupos de WhatsApp de condominios en **pacientes con reservas confirmadas** mediante pago de adelanto.
 
-> **Estado actual: FASE 0 completada** (auditoría y planificación). Ver [`docs/progress.md`](docs/progress.md).
+> **Estado actual: FASE 2 completada** (Supabase, migraciones, autenticación admin y RLS verificadas). Ver [`docs/progress.md`](docs/progress.md).
 
 ---
 
@@ -38,24 +38,56 @@ Justificación completa y riesgos de compatibilidad: [`docs/architecture.md`](do
 
 ```
 ALMAE_DIGITAL/
-├── app/                      # Aplicación Next.js (se creará en FASE 1)
-│   └── src/
-│       ├── app/              # Rutas públicas, /admin, /api
-│       ├── components/       # Componentes reutilizables accesibles
-│       ├── lib/
-│       │   ├── services/     # Lógica de negocio (reservas, disponibilidad, pagos)
-│       │   ├── payments/     # Adaptador de pasarelas (interface + culqi + mock)
-│       │   └── supabase/     # Clientes server/browser/SSR
-│       └── types/            # Tipos generados de Supabase
-├── docs/                     # Documentación del proyecto
+├── e2e/                      # Pruebas Playwright (portal + admin)
+├── scripts/                  # Utilidades (usuario demo, verificación RLS)
+├── src/
+│   ├── app/                  # Rutas públicas, /admin, /api
+│   ├── components/           # Componentes reutilizables accesibles
+│   ├── lib/
+│   │   ├── services/         # Lógica de negocio (admin)
+│   │   ├── supabase/         # Clientes server/browser/env
+│   │   ├── catalog.ts        # Catálogo público de servicios
+│   │   └── site.ts           # Configuración del negocio
+│   └── types/                # Tipos generados de Supabase (database.ts)
 ├── supabase/
-│   ├── migrations/           # SQL versionado (FASE 2)
-│   └── functions/            # Edge functions auxiliares (si aplica)
-├── e2e/                      # Pruebas Playwright (FASE 7)
+│   ├── migrations/           # SQL versionado (0001–0005)
+│   └── config.toml           # Config del CLI local
+├── docs/                     # Documentación del proyecto
 ├── .env.example
 ├── AGENTS.md
 └── README.md
 ```
+
+## Puesta en marcha (lista para GitHub)
+
+Requisitos: Node.js ≥ 20.9 (probado con 24 LTS), Docker Desktop (para Supabase local), Git.
+
+```bash
+# 1. Clonar e instalar
+git clone <repo-url> && cd almae-digital
+npm install
+
+# 2. Variables de entorno
+cp .env.example .env.local     # Windows: copy .env.example .env.local
+
+# 3. Supabase local (Docker) + migraciones + datos demo
+npx supabase start
+npx supabase db reset
+npx supabase gen types typescript --local > src/types/database.ts
+
+# 4. Completar .env.local con las claves locales
+#    (npx supabase status muestra ANON_KEY y SERVICE_ROLE_KEY)
+#    NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+
+# 5. Usuario admin de demostración (solo local)
+node --env-file=.env.local scripts/crear-usuario-demo.mjs
+
+# 6. Levantar la web
+npm run dev                    # http://localhost:3000
+#    Login admin: http://localhost:3000/admin/login
+```
+
+**Conectarse a un proyecto Supabase real (producción):** crear el proyecto en supabase.com, copiar URL + claves al `.env.local` (nunca a archivos versionados), y aplicar migraciones con `npx supabase link --project-ref <ref>` + `npx supabase db push` — solo con autorización del propietario.
 
 ## Comandos
 

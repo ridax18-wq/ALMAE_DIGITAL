@@ -165,3 +165,50 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 5. Consentimiento de las 4 fotos con paciente (no publicadas).
 6. Revisión legal de documentos.
 7. Revisión visual del sitio en su celular.
+
+---
+
+## FASE 2 — Supabase, autenticación y estructura de datos
+
+**Fecha:** 2026-10-17
+**Estado:** ✅ Completada (pendiente conectar proyecto Supabase real del propietario)
+
+### Entregables
+
+- **Dependencias instaladas y verificadas:** @supabase/supabase-js 2.118.0, @supabase/ssr 0.12.7, zod 4.6.7, @playwright/test 1.64.1 (chromium 156 local).
+- **Migraciones SQL versionadas aplicadas y validadas en stack local Docker:**
+  - `0001_enums.sql` — 14 enums (estados de reserva/pago independientes).
+  - `0002_tables.sql` — 17 tablas con FKs, índices, checks, columna generada `hold_range` y **restricción EXCLUDE USING gist** (anti-superposición física, filtrada por estados activos).
+  - `0003_rls.sql` — RLS en todas las tablas, función `es_administrador()` (security definer), lecturas públicas mínimas (servicios activos, variantes, horarios, excepciones, fuentes, configuración), políticas admin por operación.
+  - `0004_triggers.sql` — `set_updated_at` en 13 tablas, tabla de transiciones válidas + trigger guard, eventos automáticos de reserva, y trigger `confirmar_reserva_por_pago` (pago SUCCEEDED con booking vigente → CONFIRMED; nunca confirma sin pago).
+  - `0005_seed_demo.sql` — configuración (hold 10 min, gap 15, PEN/Lima), 6 fuentes `_DEMO`, horario provisional (L–V 8–20 con break 13–16, S 9–13) y **catálogo real** (10 servicios + 10 variantes con precios oficiales; adelanto NULL = por definir).
+- **Tipos generados:** `src/types/database.ts` vía `supabase gen types typescript --local`.
+- **Clientes Supabase:** `lib/supabase/{env,server,client}.ts` (SSR con cookies; guard de configuración ausente).
+- **Autenticación admin:** server actions con validación Zod (`iniciarSesion`, `cerrarSesion`); `/admin/login` con estados de error accesibles y aviso demo solo en desarrollo; layout `/admin/(protegido)` con sesión server-side (`getUser`), verificación de `admin_profiles` y `force-dynamic`. Corregido bucle de redirección inicial con route group.
+- **Usuario demo local:** `admin@almae.demo` (creado por script; credencial visible solo en la pantalla local de desarrollo; cambiar antes de producción).
+
+### Pruebas ejecutadas (reales)
+
+| Prueba | Resultado |
+|---|---|
+| `npx supabase db reset` (5 migraciones) | ✅ aplicadas sin errores |
+| `scripts/verificar-rls.mjs` | ✅ **11/11** (anon no lee tablas privadas ni inserta; anon sí lee servicios/variantes/horarios; admin lee bookings; service-role lee config) |
+| `npm run lint` | ✅ limpio |
+| `npm run typecheck` | ✅ limpio |
+| `npm run build` | ✅ 27 rutas (/admin y /admin/login dinámicas) |
+| Playwright: login/logout completo + credenciales inválidas + redirección sin sesión | ✅ (12/12 total del portal) |
+
+### Pendientes
+
+1. **Conectar proyecto Supabase real** del propietario (URL + claves en `.env.local`/secrets del despliegue) y aplicar migraciones con `supabase link` + `db push` (requiere autorización).
+2. Smoke test de despliegue a Cloudflare con Supabase conectado (riesgo R1 del ADR-003) — al crear el repo remoto.
+3. Regenerar tipos tras conectar al proyecto real.
+4. Política de adelanto (monto/%) del propietario antes de FASE 4.
+5. Duraciones reales de terapia física; precios de acupuntura/entrenamiento.
+
+### Nota de compatibilidad GitHub
+
+- `.env.local` ignorado por Git (verificado: no versionado; solo `.env.example`).
+- Ninguna clave local/publicada en docs ni código versionado (verificado con `git grep`).
+- Comandos de setup documentados y multiplataforma (Node `--env-file`, npm scripts sin dependencia de shell).
+- Carpeta `Imagenes/` del propietario excluida del repo (contiene fotos de pacientes sin consentimiento publicado; ver FASE 1).
