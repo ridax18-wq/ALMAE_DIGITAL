@@ -4,7 +4,9 @@ import { Container, Section } from "@/components/ui/Section";
 import { ServiceCard } from "@/components/ui/ServiceCard";
 import { Faq } from "@/components/ui/Faq";
 import { Photo } from "@/components/ui/Photo";
-import { Placeholder } from "@/components/ui/Placeholder";
+import {
+  Placeholder,
+} from "@/components/ui/Placeholder";
 import {
   CalendarIcon,
   CheckIcon,
@@ -13,23 +15,19 @@ import {
   SparkIcon,
   WhatsAppIcon,
 } from "@/components/icons";
-import {
-  faqs,
-  scheduleNote,
-  services,
-} from "@/lib/catalog";
+import { faqs, scheduleNote, services } from "@/lib/catalog";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Fisioterapia y rehabilitación en Lima — reserve en línea",
   description:
-    "Terapia física y rehabilitación, masajes y reflexología en Lima. Consulta los horarios disponibles y confirma tu cita en minutos con un adelanto seguro.",
+    "Terapia física y rehabilitación, masajes, acupuntura y reflexología en Lima, en consultorio y a domicilio. Consulta horarios disponibles y confirma tu cita en minutos.",
 };
 
 export default function HomePage() {
   const whatsappUrl = buildWhatsAppUrl("orientacion");
-  const featured = services.slice(0, 3);
+  const featured = services.filter((s) => s.bookable).slice(0, 3);
 
   return (
     <>
@@ -79,8 +77,8 @@ export default function HomePage() {
             </div>
             <div className="order-first lg:order-last">
               <Photo
-                src="/fotos/consultorio-atencion.jpg"
-                alt="Interior del consultorio ALMAE Terapia y Spa con camilla de atención"
+                src="/fotos/consultorio-luminoso.jpg"
+                alt="Consultorio ALMAE Terapia y Spa, limpio y luminoso, con camilla preparada"
                 aspect="aspect-[5/4]"
                 priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -117,11 +115,10 @@ export default function HomePage() {
       >
         <div className="grid items-center gap-8 lg:grid-cols-[300px_1fr]">
           <Photo
-            src="/fotos/profesional.jpg"
+            src="/fotos/retrato-directora.jpg"
             alt={`${site.professional.name}, en el consultorio ALMAE`}
-            aspect="aspect-square"
-            className="rounded-full border-2 border-brand-100"
-            sizes="300px"
+            aspect="aspect-[16/10]"
+            sizes="(max-width: 1024px) 100vw, 400px"
           />
           <div>
             <p className="font-display text-xl font-bold text-ink-900">
@@ -159,16 +156,21 @@ export default function HomePage() {
         title="Un espacio preparado para tu recuperación"
         tone="soft"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Photo
+            src="/fotos/consultorio-luminoso.jpg"
+            alt="Consultorio ALMAE limpio y luminoso"
+            sizes="(max-width: 640px) 100vw, 33vw"
+          />
           <Photo
             src="/fotos/consultorio-atencion.jpg"
             alt="Área de atención del consultorio ALMAE"
-            sizes="(max-width: 768px) 100vw, 50vw"
+            sizes="(max-width: 640px) 100vw, 33vw"
           />
           <Photo
             src="/fotos/especialista-letrero.jpg"
             alt={`${site.professional.name} junto al letrero de ALMAE Terapia y Spa`}
-            sizes="(max-width: 768px) 100vw, 50vw"
+            sizes="(max-width: 640px) 100vw, 33vw"
           />
         </div>
         <p className="mt-4 text-xs text-ink-500">

@@ -132,3 +132,25 @@ El propietario aportó en `Imagenes/` los activos oficiales y autorizó su integ
 - `catalog.ts` reemplaza a `demo-data.ts` con el catálogo real; `site.ts` centraliza identidad, dirección, profesional y WhatsApp (fallback público autorizado, configurable por env).
 
 **Validaciones re-ejecutadas tras la integración:** lint ✅, typecheck ✅, build ✅ (19 rutas, 4 servicios SSG). Prueba de humo: rutas/activos 200; contenido verificado en HTML (enlace WhatsApp, nombre del profesional, foto hero, logo, equipos del catálogo).
+
+### Actualización de catálogo y fotos (misma fase, segunda tanda de activos)
+
+El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/Servicios/`) y fotos nuevas:
+
+- **Precios oficiales integrados:** Terapia física y rehabilitación consultorio S/50 (duración por confirmar, provisional 60 min); Masaje antiestrés 60 min S/70 y 90 min S/90; Masaje estético reductor consultorio 90 min S/150; Reflexología podal y facial consultorio 60 min S/60. **A domicilio** (coordina por WhatsApp, sin reserva en línea en el MVP): terapia física S/80, antiestrés S/120 (60) / S/150 (90), reductor S/200 (90), reflexología S/70 (60).
+- **Nuevos servicios sin precio:** Acupuntura y Entrenamiento físico — visibles con "Precio por confirmar", CTA WhatsApp; no reservables en línea hasta definir precio/duración.
+- **Modelo de datos actualizado** (`docs/database.md` §1.3): `service_variants` (duración+precio por variante) y `services.location` (`consultorio`/`domicilio`); adelanto queda NULL "por definir" hasta que el propietario fije la política.
+- **Fotos reemplazadas:** hero → consultorio luminoso; especialista → retrato ejecutivo de la directora; galería con 3 fotos reales (consultorio luminoso, área de atención, especialista con letrero). 8 tarjetas de servicios convertidas a JPEG optimizado (125–147 KB cada una).
+- **Dirección simplificada** según instrucción: "Altos del Rímac 250, Rímac — Lima, Perú" (sin torre/depto).
+- `/servicios` agrupado: "En consultorio" (6) y "A domicilio" (4).
+
+**Validaciones re-ejecutadas:** lint ✅, typecheck ✅, build ✅ (25 rutas, 10 servicios SSG). Prueba de humo: 200 en todas las rutas y fotos nuevas; precios, grupos, servicios nuevos, variantes, WhatsApp y dirección verificados en HTML.
+
+**Pendientes del propietario (acumulados):**
+1. Duración real de la terapia física (consultorio y domicilio) — hoy provisional 60 min.
+2. Política de adelanto (monto o %) — hoy "por definir" en el sitio.
+3. Precio y duración de acupuntura y entrenamiento físico.
+4. Horario laboral real (hoy provisional).
+5. Consentimiento de las 4 fotos con paciente (no publicadas).
+6. Revisión legal de documentos.
+7. Revisión visual del sitio en su celular.

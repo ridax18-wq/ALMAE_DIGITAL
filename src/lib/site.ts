@@ -4,7 +4,7 @@ export const site = {
   legalName: "ALMAE Terapia y Spa",
   tagline: "Fisioterapia, rehabilitación y bienestar en Lima",
   description:
-    "ALMAE Terapia y Spa: consulta de fisioterapia y rehabilitación en Lima. Reserva tu cita en línea, confirma con un adelanto seguro y recupera tu bienestar con un profesional dedicado.",
+    "ALMAE Terapia y Spa: terapia física y rehabilitación, masajes, acupuntura y reflexología en Lima. Reserva tu cita en línea y confirma con un adelanto seguro.",
   city: "Lima, Perú",
   timezone: "America/Lima" as const,
   professional: {
@@ -12,8 +12,7 @@ export const site = {
     shortName: "Leonor Morán René",
     title: "Tec. Fisioterapeuta",
   },
-  address:
-    "Altos del Rímac 250, Torre 2, Dep. 104 — Cercado de Lima, Lima, Perú",
+  address: "Altos del Rímac 250, Rímac — Lima, Perú",
   equipment: [
     "Ultrasonido",
     "Corriente TENS",

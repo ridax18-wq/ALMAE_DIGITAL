@@ -41,7 +41,9 @@
 
 Sin políticas públicas. Gestión exclusiva service-role/supervisor.
 
-### 1.3 `services`
+### 1.3 `services` + `service_variants`
+
+`services` (identidad del servicio):
 
 | Columna | Tipo | Notas |
 |---|---|---|
@@ -49,17 +51,25 @@ Sin políticas públicas. Gestión exclusiva service-role/supervisor.
 | slug | text UNIQUE | para URLs |
 | name | text | |
 | description | text | |
-| duration_minutes | int2 | >0 |
-| prep_buffer_minutes | int2 | prep adicional, default 0 |
-| price | numeric(10,2) | >0 |
-| advance_amount | numeric(10,2) | ≥0 y ≤ price |
+| location | enum service_location: `consultorio`, `domicilio` | a domicilio: fuera de la reserva en línea del MVP (coordina por WhatsApp); la agenda podría ocupar franjas si el propietario lo decide |
 | active | boolean | default true |
 | instructions | text | instrucciones previas |
-| image_url | text | opcional |
 | sort_order | int2 | |
 | created_at, updated_at | timestamptz | |
 
-Índice parcial `(active) WHERE active`. El **precio y adelanto efectivos se calculan server-side**; el navegador solo muestra.
+`service_variants` (duración y precio por variante — necesario porque un servicio tiene varias duraciones con precio distinto, p. ej. masaje antiestrés 60/90 min):
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | |
+| service_id | uuid FK → services | |
+| duration_minutes | int2 | >0 |
+| prep_buffer_minutes | int2 | prep adicional, default 0 |
+| price | numeric(10,2) | >0 |
+| advance_amount | numeric(10,2) NULL | adelanto exigido; NULL = por definir (política del propietario) |
+
+Índices: `services(active) WHERE active`, `service_variants(service_id)`.
+El **precio y adelanto efectivos se calculan server-side**; el navegador solo muestra. Catálogo inicial real (precios de tarjetas oficiales del propietario): terapia física consultorio S/50, masaje antiestrés 60/90 (S/70–S/90), reductor consultorio S/150, reflexología consultorio S/60; domicilio: terapia física S/80, antiestrés S/120–150, reductor S/200, reflexología S/70. Acupuntura y entrenamiento físico: precio por definir (no reservables aún).
 
 ### 1.4 `service_images`
 
