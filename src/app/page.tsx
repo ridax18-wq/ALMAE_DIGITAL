@@ -11,8 +11,11 @@ import {
   CalendarIcon,
   CheckIcon,
   ClockIcon,
+  HeartIcon,
+  InfoIcon,
   MapPinIcon,
   SparkIcon,
+  WalletIcon,
   WhatsAppIcon,
 } from "@/components/icons";
 import { faqs, scheduleNote, services } from "@/lib/catalog";
@@ -40,18 +43,17 @@ export default function HomePage() {
                 Fisioterapia, rehabilitación y bienestar — {site.subtitle}
               </p>
               <h1 className="font-display text-3xl leading-tight font-extrabold text-balance sm:text-4xl lg:text-5xl">
-                Tu recuperación empieza con una reserva clara y sin trabas
+                Tu bienestar comienza con el movimiento
               </h1>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-brand-100 sm:text-lg">
-                Elige tu servicio, mira los horarios disponibles reales y
-                confirma tu cita con un adelanto seguro. Atención presencial en{" "}
-                <strong className="font-semibold text-white">Lima</strong>, con{" "}
-                {site.professional.name} para ti.
+                En ALMAE te acompañamos con atención personalizada en
+                fisioterapia, rehabilitación y bienestar, para ayudarte a
+                recuperar movimiento, funcionalidad y calidad de vida.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Button href="/reservar" className="text-base">
                   <CalendarIcon className="size-5" />
-                  Agendar cita
+                  Agendar mi cita
                 </Button>
                 {whatsappUrl ? (
                   <Button href={whatsappUrl} variant="secondary" external>
@@ -108,6 +110,45 @@ export default function HomePage() {
       </Section>
 
       <Section
+        id="como-funciona"
+        eyebrow="Cómo funciona"
+        title="Reservar tu cita es muy simple"
+        tone="plain"
+      >
+        <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: <HeartIcon className="size-6" />, title: "Elige tu terapia", text: "Selecciona el servicio que necesitas entre nuestros tratamientos." },
+            { icon: <CalendarIcon className="size-6" />, title: "Selecciona fecha y hora", text: "Verás los horarios disponibles y reservas el que mejor te acomode." },
+            { icon: <WalletIcon className="size-6" />, title: "Realiza tu adelanto", text: "Un adelanto seguro asegura tu horario; el saldo se paga en el consultorio." },
+            { icon: <CheckIcon className="size-6" />, title: "Recibe tu confirmación", text: "Tu cita queda confirmada y guardas el enlace para revisarla o reprogramarla." },
+          ].map((paso, index) => (
+            <li key={paso.title} className="rounded-2xl border border-sand-200 bg-white p-5 shadow-xs">
+              <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                {paso.icon}
+              </span>
+              <p className="mb-1 text-xs font-bold tracking-[0.18em] uppercase text-brand-600">
+                Paso {index + 1}
+              </p>
+              <h3 className="font-display text-base font-bold text-ink-900">
+                {paso.title}
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-700">
+                {paso.text}
+              </p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-dashed border-brand-300 bg-brand-50 p-4 text-sm text-ink-700">
+          <InfoIcon className="mt-0.5 size-5 shrink-0 text-brand-600" />
+          <p>
+            <strong className="font-semibold text-ink-900">Reserva en línea en preparación.</strong>{" "}
+            Mientras la conectamos con la agenda y los pagos, puedes escribirnos
+            por WhatsApp y coordinamos tu cita personalmente.
+          </p>
+        </div>
+      </Section>
+
+      <Section
         id="especialista"
         eyebrow="Tu especialista"
         title="Atención profesional dedicada"
@@ -156,26 +197,34 @@ export default function HomePage() {
         title="Un espacio preparado para tu recuperación"
         tone="soft"
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="mx-auto max-w-3xl">
           <Photo
             src="/fotos/consultorio-luminoso.jpg"
-            alt="Consultorio ALMAE limpio y luminoso"
-            sizes="(max-width: 640px) 100vw, 33vw"
-          />
-          <Photo
-            src="/fotos/consultorio-atencion.jpg"
-            alt="Área de atención del consultorio ALMAE"
-            sizes="(max-width: 640px) 100vw, 33vw"
-          />
-          <Photo
-            src="/fotos/especialista-letrero.jpg"
-            alt={`${site.professional.name} junto al letrero de ALMAE Terapia y Spa`}
-            sizes="(max-width: 640px) 100vw, 33vw"
+            alt="Consultorio ALMAE Terapia y Spa, limpio y luminoso, con camilla preparada"
+            aspect="aspect-[16/9]"
+            sizes="(max-width: 1024px) 100vw, 768px"
           />
         </div>
-        <p className="mt-4 text-xs text-ink-500">
-          Pronto agregaremos más fotografías del espacio.
-        </p>
+      </Section>
+
+      <Section
+        id="promociones"
+        eyebrow="Promociones"
+        title="Beneficios y novedades"
+        tone="soft"
+      >
+        <div className="rounded-2xl border border-dashed border-brand-300 bg-white p-8 text-center">
+          <p className="mx-auto max-w-xl text-sm leading-relaxed text-ink-700">
+            No publicamos ofertas sin aprobación y configuración administrativa.
+            Cuando existan promociones vigentes, las encontrarás aquí y en
+            nuestra página de promociones.
+          </p>
+          <div className="mt-6">
+            <Button href="/promociones" variant="secondary">
+              Ver promociones
+            </Button>
+          </div>
+        </div>
       </Section>
 
       <Section

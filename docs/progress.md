@@ -146,6 +146,17 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 
 **Validaciones re-ejecutadas:** lint ✅, typecheck ✅, build ✅ (25 rutas, 10 servicios SSG). Prueba de humo: 200 en todas las rutas y fotos nuevas; precios, grupos, servicios nuevos, variantes, WhatsApp y dirección verificados en HTML.
 
+### Cierre del brief de FASE 1 (tercera ronda)
+
+- **Paleta definitiva por decisión del propietario: verde petróleo + salvia + blanco + crema** (revierte terracota; tokens editables en `@theme`).
+- Galería "Un espacio preparado para tu recuperación" usa **solo la primera fotografía** (consultorio luminoso).
+- **Hero con copy del brief:** "Tu bienestar comienza con el movimiento" + subtítulo oficial + botones "Agendar mi cita" y "Consultar por WhatsApp".
+- Nueva sección **"Cómo funciona"** (4 pasos) con aviso explícito de reserva en línea en preparación.
+- Nueva sección **"Promociones"** en home (estado honesto sin ofertas sin aprobación) con enlace a `/promociones`.
+- **Redes sociales configurables** en footer vía `NEXT_PUBLIC_SOCIAL_LINKS="Etiqueta|URL,..."` (no se muestran si no existen).
+- **Suite Playwright** (9 pruebas): navegación header, menú móvil (abrir/navegar/Escape), página de reserva en preparación, consola sin errores, enlaces internos sin rotos, WhatsApp habilitado, capturas 375/768/1440 → `docs/screenshots/fase1-home-*.jpg`.
+- Criterio del brief: botones "Agendar" conducen a página identificada como próxima implementación ✅ (sin reserva falsa ni pagos simulados).
+
 **Pendientes del propietario (acumulados):**
 1. Duración real de la terapia física (consultorio y domicilio) — hoy provisional 60 min.
 2. Política de adelanto (monto o %) — hoy "por definir" en el sitio.

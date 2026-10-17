@@ -3,7 +3,7 @@ import Image from "next/image";
 import { MapPinIcon, ClockIcon, WhatsAppIcon } from "@/components/icons";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { scheduleNote } from "@/lib/catalog";
-import { site } from "@/lib/site";
+import { getSocialLinks, site } from "@/lib/site";
 
 const NAV = [
   { href: "/servicios", label: "Servicios" },
@@ -37,6 +37,22 @@ export function Footer() {
             Fisioterapia, rehabilitación y bienestar. Atención presencial con un
             profesional dedicado en {site.city}.
           </p>
+          {getSocialLinks().length > 0 ? (
+            <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+              {getSocialLinks().map((social) => (
+                <li key={social.url}>
+                  <a
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded font-semibold text-white hover:text-brand-200"
+                  >
+                    {social.label} ↗
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <nav aria-label="Enlaces del sitio">

@@ -35,3 +35,22 @@ export function getWhatsAppNumber(): string {
   }
   return "51919608174";
 }
+
+export type SocialLink = { label: string; url: string };
+
+export function getSocialLinks(): SocialLink[] {
+  const raw = process.env.NEXT_PUBLIC_SOCIAL_LINKS?.trim() ?? "";
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map((entry) => {
+      const separator = entry.indexOf("|");
+      if (separator === -1) return { label: "Red social", url: entry };
+      return {
+        label: entry.slice(0, separator).trim(),
+        url: entry.slice(separator + 1).trim(),
+      };
+    })
+    .filter((link) => /^https?:\/\//.test(link.url) && link.url.length > 0);
+}

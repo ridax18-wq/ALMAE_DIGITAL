@@ -69,10 +69,19 @@ ALMAE_DIGITAL/
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript en modo estricto |
 | `npm test` / `npm run test:watch` | Vitest (lógica y servicios) |
-| `npm run test:e2e` | Playwright (flujo completo) |
+| `npm run test:e2e` | Playwright (flujo completo; autoinicia `next start` en el puerto 3127) |
 | `npx supabase migration up` (local) | Aplicar migraciones |
 | `npx opennextjs-cloudflare build && npx wrangler dev` | Preview de producción local (Cloudflare) |
 | `npx opennextjs-cloudflare deploy` | Despliegue a Cloudflare Workers |
+
+Para visualizar el sitio localmente tras un `npm run build`:
+
+```bash
+npm run build
+npm run start      # http://localhost:3000
+```
+
+Capturas de pantalla de FASE 1 (375/768/1440 px) en [`docs/screenshots/`](docs/screenshots).
 
 ## Documentación
 
