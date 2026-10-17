@@ -50,3 +50,6 @@ npm-debug.log*
 next-env.d.ts
 .turbo/
 .vercel/
+
+# Activos origen del propietario (incluye fotos de pacientes sin consentimiento publicado) — solo local
+Imagenes/
