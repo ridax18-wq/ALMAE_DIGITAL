@@ -59,7 +59,7 @@ Principios rectores:
 - React peer `^19.0.0` → React 19.3.1.
 - Mitigación TS7: si `typescript-eslint` requiere API JS, instalar `@typescript/typescript6@^6.0.2` lado a lado (mecanismo recomendado por Microsoft), manteniendo `tsc` de TS7 para `typecheck` y `next build`.
 
-**Consecuencias:** typecheck ~10× más rápido; riesgo controlado de herramientas de lint (mitigación anterior). Se revalidará en la instalación de FASE 1.
+**Consecuencias:** typecheck ~10× más rápido con TS7; riesgo controlado de herramientas de lint. **Revalidado en FASE 1:** `typescript-eslint` (incluido en `eslint-config-next@16.4.2`) comunica que no soporta TS 7.0 (soporte previsto desde TS 7.1, issue typescript-eslint#10940). Se aplicó la mitigación recomendada por Microsoft: `typescript` instalado como alias `npm:@typescript/typescript6@^6.0.2` (tsc 6.0.3 para typecheck/build y API JS para lint, con semántica de comprobación equivalente a TS 7). Al soportar typescript-eslint TS ≥7.1, restaurar `typescript@7.x`.
 
 ### ADR-002 — Backend: Supabase (PostgreSQL + Auth + RLS)
 

@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #faf1ec;
+  --color-brand-100: #f5dfd5;
+  --color-brand-200: #ecbfa9;
+  --color-brand-300: #dd9a7e;
+  --color-brand-400: #cd7b58;
+  --color-brand-500: #b9613d;
+  --color-brand-600: #a14e2e;
+  --color-brand-700: #863f24;
+  --color-brand-800: #6d321d;
+  --color-brand-900: #572716;
+
+  --color-sage-100: #f0eae3;
+  --color-sage-200: #ddd2c4;
+  --color-sage-300: #c5b5a4;
+  --color-sage-500: #a08a76;
+  --color-sage-600: #85705c;
+  --color-sage-700: #6a594a;
+
+  --color-sand-50: #fbf8f2;
+  --color-sand-100: #f5eee2;
+  --color-sand-200: #eadfce;
+
+  --color-ink-900: #2a2320;
+  --color-ink-700: #4a413b;
+  --color-ink-500: #6f645c;
+  --color-ink-300: #d3cac2;
+
+  --color-whatsapp: #25d366;
+  --color-whatsapp-dark: #1da851;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-sand-50 font-sans text-ink-900 antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+}
+
+.skip-link {
+  @apply sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:rounded-lg focus:bg-brand-800 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white;
+}

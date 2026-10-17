@@ -1,0 +1,101 @@
+import type { Metadata } from "next";
+import { PageHero } from "@/components/ui/PageHero";
+import { Container } from "@/components/ui/Section";
+import { MapPinIcon, ClockIcon, WhatsAppIcon, InfoIcon } from "@/components/icons";
+import { scheduleNote } from "@/lib/catalog";
+import { buildWhatsAppUrl, type WhatsAppIntent } from "@/lib/whatsapp";
+import { site } from "@/lib/site";
+
+export const metadata: Metadata = {
+  title: "Contacto",
+  description:
+    "Contacta a ALMAE por WhatsApp: consultas por servicios, orientación, citas, paquetes o ayuda con un pago. Atención presencial en Lima.",
+};
+
+const ACCIONES: { intent: WhatsAppIntent; label: string; detail?: string }[] = [
+  { intent: "servicio", label: "Consultar por un servicio" },
+  { intent: "orientacion", label: "Solicitar orientación" },
+  { intent: "cita", label: "Consultar una cita" },
+  { intent: "paquetes", label: "Consultar paquetes" },
+  { intent: "pago", label: "Ayuda con un pago" },
+];
+
+export default function ContactoPage() {
+  const whatsappUrl = buildWhatsAppUrl("general");
+  const numeroConfigurado = whatsappUrl !== null;
+
+  return (
+    <>
+      <PageHero
+        eyebrow="Contacto"
+        title="Hablemos por WhatsApp"
+        description="La forma más rápida de contactarnos es WhatsApp. Elige el motivo de tu consulta y te responderemos en horario de atención."
+      />
+      <main className="bg-sand-50 py-12 sm:py-16">
+        <Container className="max-w-3xl">
+          {!numeroConfigurado ? (
+            <div className="mb-8 flex items-start gap-3 rounded-xl border border-dashed border-brand-300 bg-brand-50 p-4 text-sm text-ink-700">
+              <InfoIcon className="mt-0.5 size-5 shrink-0 text-brand-600" />
+              <p>
+                El número de WhatsApp de ALMAE se activará cuando se confirme
+                el contacto oficial (dato de demostración por ahora).
+              </p>
+            </div>
+          ) : null}
+
+          <div className="rounded-2xl border border-sand-200 bg-white p-6 shadow-xs sm:p-8">
+            <h2 className="font-display text-xl font-bold text-ink-900">
+              ¿Qué necesitas hoy?
+            </h2>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+              {ACCIONES.map((accion) => {
+                const url = buildWhatsAppUrl(accion.intent, accion.detail);
+                if (!url) return null;
+                return (
+                  <li key={accion.label}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-h-12 items-center gap-3 rounded-xl border border-sand-200 bg-sand-50 px-4 py-3 text-sm font-semibold text-ink-900 transition-colors hover:border-whatsapp hover:bg-sage-100"
+                    >
+                      <WhatsAppIcon className="size-5 text-whatsapp" />
+                      {accion.label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+            {!numeroConfigurado ? (
+              <p className="mt-5 text-xs text-ink-500">
+                Los accesos por WhatsApp aparecerán al configurar el número
+                oficial.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mt-8 grid gap-5 sm:grid-cols-2">
+            <div className="rounded-2xl border border-sand-200 bg-white p-6 shadow-xs">
+              <h3 className="flex items-center gap-2 font-display text-base font-bold text-ink-900">
+                <ClockIcon className="size-5 text-brand-600" />
+                Horario de atención
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-700">
+                {scheduleNote}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-sand-200 bg-white p-6 shadow-xs">
+              <h3 className="flex items-center gap-2 font-display text-base font-bold text-ink-900">
+                <MapPinIcon className="size-5 text-brand-600" />
+                Ubicación
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-700">
+                {site.address}
+              </p>
+            </div>
+          </div>
+        </Container>
+      </main>
+    </>
+  );
+}
