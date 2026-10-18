@@ -140,6 +140,14 @@ export function ImageOffIcon({ className }: IconProps) {
   );
 }
 
+export function SyncIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path d="M21 12a9 9 0 0 1-15.5 6.3M3 12a9 9 0 0 1 15.5-6.3M17 3v3h-3M7 21v-3h3" {...stroke} />
+    </svg>
+  );
+}
+
 export function LeafIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>

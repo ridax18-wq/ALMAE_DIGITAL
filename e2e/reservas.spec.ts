@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { limpiarAgendaLocal } from "./utilidades";
 
 async function encontrarDiaConHorarios(page: import("@playwright/test").Page): Promise<boolean> {
   for (let desplazamiento = 0; desplazamiento < 5; desplazamiento += 1) {
@@ -14,6 +15,9 @@ async function encontrarDiaConHorarios(page: import("@playwright/test").Page): P
 }
 
 test.describe("FASE 3 — motor de reservas", () => {
+  test.beforeAll(async () => {
+    await limpiarAgendaLocal();
+  });
   test("flujo completo: servicio, horario, datos, hold y cancelación", async ({ page }) => {
     await page.goto("/reservar");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Reserva tu cita");
@@ -24,7 +28,13 @@ test.describe("FASE 3 — motor de reservas", () => {
     const conHorarios = await encontrarDiaConHorarios(page);
     expect(conHorarios, "No se encontró un día con horarios en 5 intentos").toBe(true);
 
-    await page.locator("fieldset button").first().click();
+    const chips = page.locator("fieldset button");
+    const chipEstable = chips.filter({ hasText: "18:00" });
+    if ((await chipEstable.count()) > 0) {
+      await chipEstable.first().click();
+    } else {
+      await chips.last().click();
+    }
     await expect(page.getByText("Paso 3 de 3")).toBeVisible();
 
     await page.fill("#nombre", "Paciente Prueba E2E");
@@ -33,10 +43,12 @@ test.describe("FASE 3 — motor de reservas", () => {
     await page.getByRole("button", { name: "Reservar mi horario" }).click();
 
     await page.waitForURL(/\/reserva\/[0-9a-f]{64}$/);
-    await expect(page.getByText("Horario reservado — pago pendiente")).toBeVisible();
+    await expect(
+      page.locator("main").getByText("Horario reservado — pago pendiente"),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Terapia física");
 
     await page.getByRole("button", { name: "Cancelar mi reserva" }).click();
-    await expect(page.getByText("Reserva cancelada")).toBeVisible();
+    await expect(page.locator("main").getByText("Reserva cancelada")).toBeVisible();
   });
 });

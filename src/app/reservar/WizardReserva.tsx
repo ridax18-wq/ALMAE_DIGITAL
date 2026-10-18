@@ -336,8 +336,8 @@ export function WizardReserva({
           </div>
           <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-ink-500">
             <WalletIcon className="size-3.5" />
-            El pago del adelanto estará disponible próximamente (Fase 4); tu
-            horario queda reservado mientras se conecta.
+            Tras reservar, pagarás el adelanto para confirmar (simulador en
+            desarrollo; pasarela real en Fase 5).
           </p>
         </form>
       ) : null}

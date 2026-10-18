@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cancelarMiReserva } from "@/app/reserva/[token]/actions";
+import { cancelarMiReserva, pagarAdelanto } from "@/app/reserva/[token]/actions";
 import {
   CalendarIcon,
   ClockIcon,
@@ -186,13 +186,31 @@ export default async function ReservaTokenPage({
 
           <p className="mt-4 inline-flex items-start gap-2 text-xs leading-relaxed text-ink-500">
             <ShieldCheckIcon className="mt-0.5 size-3.5 shrink-0" />
-            La confirmación formal de la cita se realiza al acreditar el pago
-            del adelanto. El sistema de pagos estará disponible próximamente
-            (Fase 4); mientras tanto tu horario queda reservado y puedes
-            coordinar todo por WhatsApp.
+            La cita se confirma formalmente cuando el pago del adelanto está
+            acreditado y validado por el sistema. Mientras no se integre la
+            pasarela real (Culqi, Fase 5), el pago usa el simulador de
+            desarrollo.
           </p>
 
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          {reserva.status === "HELD" && reserva.advanceAmount > 0 ? (
+            <form action={pagarAdelanto} className="mt-7">
+              <input type="hidden" name="token" value={token} />
+              <button
+                type="submit"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-800"
+              >
+                <WalletIcon className="size-5" />
+                Pagar adelanto {formatPen(reserva.advanceAmount)}
+              </button>
+              {process.env.NODE_ENV !== "production" ? (
+                <p className="mt-2 text-center text-xs text-amber-800">
+                  El pago usa el simulador de desarrollo (Fase 4).
+                </p>
+              ) : null}
+            </form>
+          ) : null}
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             {puedeCancelar ? (
               <form action={cancelarMiReserva} className="contents">
                 <input type="hidden" name="token" value={token} />

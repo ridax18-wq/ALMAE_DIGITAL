@@ -252,3 +252,43 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 2. Recordatorios/notificaciones (Fase 8).
 3. Vista semanal/mensual de agenda (Fase 6).
 4. Pago real del adelanto para CONFIRMED (Fase 4 — la cita queda HELD hasta entonces, por diseño).
+
+---
+
+## FASE 4 — Adelantos simulados y flujo de confirmación
+
+**Fecha:** 2026-10-17
+**Estado:** ✅ Completada (pasarela real Culqi = FASE 5)
+
+### Entregables
+
+- **Migración `0007_politica_adelanto.sql`**: `business_settings.advance_percent` (parámetro editable, valor provisional **40%** — el propietario puede cambiarlo; se aplica cuando la variante no define `advance_amount`); RPC `crear_reserva_con_hold` recalculada para fijar el adelanto en la reserva; `expirar_pagos()` para el CRON.
+- **Adaptador de pagos** (`src/lib/payments/gateway.ts`): interfaz `PasarelaPagos`, selección por `PAYMENTS_PROVIDER`, y guard fail-closed: `esProduccion()` = todo lo que no sea explícitamente `NEXT_PUBLIC_ENV=development`; **el simulador es imposible en producción** (revisado en orquestador, checkout y webhook).
+- **Orquestador** (`src/lib/payments/orquestador.ts`): iniciar pago (reutiliza intención pendiente; monto SIEMPRE leído de BD), webhook con firma **HMAC-SHA256** (`timingSafeEqual`), idempotencia por `event_id`, match de monto/moneda, y conciliación: pago tardío → `RECONCILIATION` + fila en `payment_reconciliation(late_after_hold)`; monto disímil → `mismatch_amount`; pago fallido sobre HELD → reserva CANCELLED.
+- **Webhook route** `/api/webhooks/pagos/[proveedor]`: firma obligatoria, 403 en producción, rate limit.
+- **Checkout simulador** `/pagos/checkout/[referencia]` (solo dev): aprobar / rechazar / **enviar webhook duplicado** (demuestra idempotencia en vivo). Server actions firman y envían server-to-server (el navegador no confía en nada).
+- **Resultado real** `/pagos/resultado/[referencia]`: lee el estado desde la BD (nunca de la URL), con auto-recheck mientras PENDING; card de éxito enlaza a la reserva; fallo → no confirma; expirado → orientación; conciliación → aviso de contacto.
+- **`/reserva/[token]`**: botón "Pagar adelanto S/ XX" cuando está en HELD.
+- **Env**: `PAYMENTS_MOCK_WEBHOOK_SECRET` en `.env.example`/`.env.local`.
+
+### Pruebas ejecutadas (reales)
+
+| Prueba | Resultado |
+|---|---|
+| Vitest integración de pagos (6): aprobado→CONFIRMED, duplicado→1 solo evento, rechazado→CANCELLED, tardío→RECONCILIATION+EXPIRED, mismatch→RECONCILIATION sin confirmar, firma inválida→401, iniciar pago en reserva expirada→rechazo | ✅ **16/16 totales** |
+| Playwright E2E (4 flujos de pago en navegador): aprobar→confirmada, rechazar→no confirmada, webhook duplicado→una sola confirmación, reserva+hold+cancelación | ✅ **16/16 totales** |
+| lint / typecheck / build | ✅ ✅ ✅ |
+
+### Correcciones durante la fase
+
+- Bug PostgREST: `data: []` (truthy) interpretaba TODO evento como duplicado → check por `length`.
+- Bug de parseo: `time` con segundos de la BD malformaba el ISO del descanso (`T13:00:00:00`) → descanso ignorado en disponibilidad → corregido `fechaHoraLimaADate`.
+- Guard de producción: ahora fail-closed por `NEXT_PUBLIC_ENV` (el E2E corre sobre build de producción con `.env.local` cargado por `next start`).
+- Limpieza E2E: `limpiarAgendaLocal()` con guard 127.0.0.1 (solo local); slots de prueba estables (18:00) fuera del break.
+
+### Pendientes
+
+1. **FASE 5**: adaptador Culqi real (sandbox), revalidando en ese momento endpoints/firmas contra la documentación vigente del proveedor.
+2. Política de adelanto definitiva (hoy 40% provisional, editable en BD).
+3. Duraciones reales de terapia física; precios de acupuntura/entrenamiento.
+4. Bandeja de conciliación en admin (Fase 6).

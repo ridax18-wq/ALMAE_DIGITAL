@@ -5,10 +5,10 @@
 | Fase | Nombre | Estado |
 |---|---|---|
 | 0 | Auditoría del entorno y planificación | ✅ Completada |
-| 1 | Interfaz pública y navegación | ⏳ Pendiente |
-| 2 | Supabase, autenticación y datos | ⏳ Pendiente |
-| 3 | Motor de disponibilidad y reservas | ⏳ Pendiente |
-| 4 | Adelantos simulados + flujo de confirmación | ⏳ Pendiente |
+| 1 | Interfaz pública y navegación | ✅ Completada |
+| 2 | Supabase, autenticación y datos | ✅ Completada |
+| 3 | Motor de disponibilidad y reservas | ✅ Completada |
+| 4 | Adelantos simulados + flujo de confirmación | ✅ Completada |
 | 5 | Integración real Culqi (sandbox) | ⏳ Pendiente |
 | 6 | Panel administrativo y reportes | ⏳ Pendiente |
 | 7 | E2E y preparación de despliegue | ⏳ Pendiente |

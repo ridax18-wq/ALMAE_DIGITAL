@@ -50,7 +50,8 @@ const OFFSET_LIMA = "-05:00";
 const MS_POR_MINUTO = 60_000;
 
 export function fechaHoraLimaADate(fecha: string, hhmm: string): Date {
-  return new Date(`${fecha}T${hhmm}:00${OFFSET_LIMA}`);
+  const [h, m] = hhmm.split(":");
+  return new Date(`${fecha}T${h ?? "00"}:${m ?? "00"}:00${OFFSET_LIMA}`);
 }
 
 function minutosDe(hhmm: string): number {
