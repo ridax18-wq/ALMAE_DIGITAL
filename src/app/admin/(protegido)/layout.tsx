@@ -14,6 +14,18 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+const NAVEGACION = [
+  { href: "/admin", label: "Dashboard" },
+  { href: "/admin/agenda", label: "Agenda" },
+  { href: "/admin/reservas", label: "Reservas" },
+  { href: "/admin/pacientes", label: "Pacientes" },
+  { href: "/admin/servicios", label: "Servicios" },
+  { href: "/admin/horarios", label: "Horarios" },
+  { href: "/admin/pagos", label: "Pagos" },
+  { href: "/admin/reportes", label: "Reportes" },
+  { href: "/admin/configuracion", label: "Configuración" },
+];
+
 export default async function AdminLayout({
   children,
 }: {
@@ -69,6 +81,20 @@ export default async function AdminLayout({
             </form>
           </div>
         </div>
+        <nav aria-label="Secciones del panel" className="border-t border-sand-200 bg-white">
+          <ul className="mx-auto flex w-full max-w-7xl gap-1 overflow-x-auto px-4 py-2 sm:px-6 lg:px-8">
+            {NAVEGACION.map((seccion) => (
+              <li key={seccion.href}>
+                <Link
+                  href={seccion.href}
+                  className="block whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-800"
+                >
+                  {seccion.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </header>
       {!administrador ? (
         <div className="mx-auto mt-6 w-full max-w-7xl px-4 sm:px-6 lg:px-8">

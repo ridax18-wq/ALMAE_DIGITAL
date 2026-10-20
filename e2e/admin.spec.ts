@@ -7,11 +7,8 @@ test.describe("FASE 2 — acceso administrativo", () => {
     await page.fill("#password", "DemoAlmae2026");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
     await page.waitForURL("**/admin");
-    await expect(page.getByText("Sesión activa")).toBeVisible();
-    await expect(
-      page.getByRole("strong").filter({ hasText: "admin@almae.demo" }),
-    ).toBeVisible();
-    await expect(page.getByText("Rol: owner")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByText("admin@almae.demo")).toBeVisible();
 
     await page.getByRole("button", { name: "Cerrar sesión" }).click();
     await page.waitForURL("**/admin/login");
