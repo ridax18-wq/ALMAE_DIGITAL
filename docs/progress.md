@@ -215,6 +215,38 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 
 ---
 
+## HITO 2.2 — Base de datos definitiva (flujo WhatsApp, agenda unificada)
+
+**Fecha:** 2026-10-20
+**Estado:** En ejecución — subetapas
+
+### H2.2-a — Compilación y suite verde ✅
+
+**Cambio de requerimiento aplicado:** el pago web (simulador) se **retira del flujo del paciente**; la retención de 15 minutos coordina el adelanto por WhatsApp y **solo el administrador confirma** tras verificar el pago. Culqi queda desacoplado para una fase futura opcional (se conserva `lib/payments/gateway.ts` como interfaz).
+
+**Migraciones incrementales aplicadas (ninguna migración aplicada fue modificada):**
+- `0008_modelo_definitivo.sql`: dinero en **céntimos** (`amount_cents`, `deposit_required_cents`, `deposit_cents` en variantes), `origin` (WEB/IN_PERSON/ADMIN), `public_code` único (ALM-XXXX…), **hash SHA-256 del token** (el texto plano queda solo de paso para el backfill), `confirmed_at/confirmed_by/cancellation_reason`, roles ampliados (`admin/professional/receptionist`), `admin_profiles.active`, `max_hold_extension_minutes` (30), tablas nuevas **`manual_payments`** (YAPE/PLIN/BANK_TRANSFER/CASH/OTHER; REPORTED/VERIFIED/REJECTED; unique por método+referencia) y **`schedule_blocks`** (BREAK/INTERNAL/ABSENCE/MAINTENANCE/OTHER), y **`agenda_occupancy`** unificada con **EXCLUDE GiST** + triggers de sincronización transaccional desde bookings y bloques (backfill de ocupación existente), vista `bookings_resumen_economico`, trigger de confirmación por pago deshabilitado (el flujo nuevo solo confirma el owner).
+- `0009_funciones_operativas.sql`: `crear_retencion_web` (RPC pública controlada: valida servicio/variante/ventana/horario/excepciones/**ocupación unificada con gap** + advisory lock + upsert paciente + código público + token de 256 bits con hash), `obtener_reserva_por_token`/`cancelar_reserva_por_token` (por **hash**), `expirar_retenciones` (idempotente), matriz de transiciones del flujo definitivo (HELD/CONFIRMED/EXPIRED/CANCELLED/COMPLETED/NO_SHOW).
+- `0010_operaciones_admin_rls.sql`: `es_owner_activo()`, `confirmar_reserva_admin` (transaccional: FOR UPDATE, rechaza vencida/estado inválido/slot libre, **exige adelantos VERIFIED ≥ requerido**, idempotente, auditada), `extender_retencion` (límite configurable, no reactiva vencidas), `crear_reserva_presencial` (CONFIRMED inmediato + exención de adelanto con motivo), `crear_bloqueo_agenda` (reporta conflictos con citas antes de bloquear; nunca borra citas), `liberar_bloqueo_agenda` + **RLS** de las 3 tablas nuevas.
+- `0011_horarios_definitivos.sql`: `day_of_week` **ISO (1=lun…7=dom)**, varios bloques por día (cae el UNIQUE), validador `validar_semana_laboral`.
+
+**App:**
+- Flujo del paciente: wizard → retención → **página de reserva con código público, contador de 15 min (informativo), mensaje del flujo y botón WhatsApp prellenado** (código+servicio+fecha+hora). Cancelación según política.
+- Motor de disponibilidad **multi-franja por día** (varios bloques diarios) + descansos + ocupaciones de citas **y bloqueos** + lead/gap; revalidación server-side.
+- Retiro del pago simulado: eliminados checkout/resultado/webhook mock y sus pruebas; `/api/cron/expire-holds` apunta a `expirar_retenciones`.
+- Expiración **lazy en servidor** al consultar disponibilidad y al crear retención (no depende del navegador ni del cron puntual).
+
+**Correcciones aplicadas durante la subetapa:** sintaxis SQL inválida (index dentro de ALTER; ternario inexistente en PL/pgSQL), variables no declaradas, permisos EXECUTE para `service_role` tras los revoke, filtrado de deletes con enums (PostgREST no acepta valores fuera del enum), test E2E con fechas futuras (la agenda real satura fechas fijas), contador con setState solo en callbacks (purity).
+
+**Validaciones ejecutadas (reales):** lint ✅ 0 problemas · typecheck ✅ limpio · vitest ✅ **11/11** · build ✅ (28 rutas). E2E del flujo completo: pendiente en H2.2-b (declarado).
+
+### Pendientes del hito
+
+- **H2.2-b:** panel admin adaptado (confirmar con resumen de pago verificado, extender retención, adelantos manuales REPORTED/VERIFIED/REJECTED, reservas presenciales, bloques en agenda, reprogramación) + regeneración de tipos tras verificación + E2E de flujo completo (retención → WhatsApp → validación admin → CONFIRMED) + pruebas SQL de los 25 casos (concurrencia incluida).
+- **H2.2-c:** documentación (erd.md, rls-matrix.md, booking-flow.md, manual-payments.md, admin-calendar.md, migrations.md, testing-database.md, database.md, security.md, requirements.md, roadmap.md) + informe final.
+
+---
+
 ## FASE 3 — Motor de disponibilidad y reservas
 
 **Fecha:** 2026-10-17

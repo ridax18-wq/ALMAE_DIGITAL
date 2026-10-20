@@ -10,7 +10,7 @@ import {
   WhatsAppIcon,
 } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
-import { buildWhatsAppUrl, type WhatsAppIntent } from "@/lib/whatsapp";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { formatFechaLima, formatHorarioLima, formatPen } from "@/lib/format";
 import { obtenerReserva } from "@/lib/services/reservas";
 import { ContadorRetencion } from "@/app/reserva/[token]/ContadorRetencion";

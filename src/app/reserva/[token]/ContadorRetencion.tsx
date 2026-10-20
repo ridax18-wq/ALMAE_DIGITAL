@@ -2,28 +2,37 @@
 
 import { useEffect, useState } from "react";
 
-function restante(vence: number): string {
+function restanteEn(vence: number): { texto: string; expirada: boolean } {
   const ms = Math.max(0, vence - Date.now());
   const totalSegundos = Math.floor(ms / 1000);
   const minutos = Math.floor(totalSegundos / 60);
   const segundos = totalSegundos % 60;
-  return `${String(minutos).padStart(2, "0")}:${String(segundos).padStart(2, "0")}`;
+  return {
+    texto: `${String(minutos).padStart(2, "0")}:${String(segundos).padStart(2, "0")}`,
+    expirada: vence <= Date.now(),
+  };
 }
 
 export function ContadorRetencion({ venceIso }: { venceIso: string | null }) {
-  const [renderizable, setRenderizable] = useState(false);
+  const [estado, setEstado] = useState<{ texto: string; expirada: boolean } | null>(null);
 
   useEffect(() => {
-    setRenderizable(true);
-  }, []);
+    const vence = venceIso ? new Date(venceIso).getTime() : Number.NaN;
+    if (Number.isNaN(vence)) return;
+
+    const actualizar = () => setEstado(restanteEn(vence));
+    const primerTick = setTimeout(actualizar, 0);
+    const intervalo = setInterval(actualizar, 1000);
+
+    return () => {
+      clearTimeout(primerTick);
+      clearInterval(intervalo);
+    };
+  }, [venceIso]);
 
   if (!venceIso) return null;
 
-  const vence = new Date(venceIso).getTime();
-
-  if (Number.isNaN(vence)) return null;
-
-  if (!renderizable) {
+  if (!estado) {
     return (
       <p className="mt-3 text-sm font-semibold text-amber-900">
         Tiempo restante de la retención: consultando…
@@ -31,16 +40,14 @@ export function ContadorRetencion({ venceIso }: { venceIso: string | null }) {
     );
   }
 
-  const expirada = vence <= Date.now();
-
   return (
     <p
       role="timer"
-      className={`mt-3 text-sm font-semibold ${expirada ? "text-red-800" : "text-amber-900"}`}
+      className={`mt-3 text-sm font-semibold ${estado.expirada ? "text-red-800" : "text-amber-900"}`}
     >
-      {expirada
+      {estado.expirada
         ? "La retención venció; el horario se liberará automáticamente. Si ya coordinaste con ALMAE, escríbenos para retomar tu cita."
-        : `Tiempo restante de la retención: ${restante(vence)} (min:seg)`}
+        : `Tiempo restante de la retención: ${estado.texto} (min:seg)`}
     </p>
   );
 }

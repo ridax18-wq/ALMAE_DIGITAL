@@ -1,4 +1,4 @@
-import { expirarHolds } from "@/lib/services/reservas";
+import { expirarRetenciones } from "@/lib/services/reservas";
 
 export async function POST(request: Request) {
   const esperado = process.env.CRON_SECRET?.trim();
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false }, { status: 401 });
   }
 
-  const expiradas = await expirarHolds();
+  const expiradas = await expirarRetenciones();
 
   return Response.json(
     { ok: true, expiradas },

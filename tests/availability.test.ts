@@ -19,8 +19,13 @@ function parametrosBase(
   return {
     fecha,
     weekday: new Date(`${fecha}T12:00:00-05:00`).getUTCDay(),
-    franja: { apertura: "08:00", cierre: "20:00" },
-    descansos: [],
+    franjas: [
+      {
+        apertura: "08:00",
+        cierre: "20:00",
+        descansos: [],
+      },
+    ],
     pasoMinutos: 15,
     gapMinutos: 15,
     leadMinutos: 0,
@@ -33,7 +38,7 @@ function parametrosBase(
 describe("calcularSlots", () => {
   it("genera slots alineados al paso dentro del horario laboral", () => {
     const parametros = parametrosBase({
-      franja: { apertura: "09:00", cierre: "11:00" },
+      franjas: [{ apertura: "09:00", cierre: "11:00", descansos: [] }],
     });
     const slots = calcularSlots(parametros);
     expect(slots.map((s) => s.etiqueta)).toEqual([
@@ -46,15 +51,32 @@ describe("calcularSlots", () => {
     expect(slots[0]?.inicioUtc).toBe(`${parametros.fecha}T14:00:00.000Z`);
   });
 
-  it("no genera slots cuando el día está cerrado", () => {
-    expect(calcularSlots(parametrosBase({ franja: null }))).toEqual([]);
+  it("no genera slots cuando no hay ventanas de atención", () => {
+    expect(calcularSlots(parametrosBase({ franjas: [] }))).toEqual([]);
+  });
+
+  it("combina varias ventanas del mismo día", () => {
+    const slots = calcularSlots(
+      parametrosBase({
+        franjas: [
+          { apertura: "08:00", cierre: "09:00", descansos: [] },
+          { apertura: "16:00", cierre: "17:00", descansos: [] },
+        ],
+      }),
+    );
+    expect(slots.map((s) => s.etiqueta)).toEqual(["08:00", "16:00"]);
   });
 
   it("no genera slots que cruzan el descanso", () => {
     const slots = calcularSlots(
       parametrosBase({
-        franja: { apertura: "08:00", cierre: "16:00" },
-        descansos: [{ desdeHora: "13:00", hastaHora: "16:00" }],
+        franjas: [
+          {
+            apertura: "08:00",
+            cierre: "16:00",
+            descansos: [{ desdeHora: "13:00", hastaHora: "16:00" }],
+          },
+        ],
       }),
     );
     const etiquetas = slots.map((s) => s.etiqueta);
@@ -67,7 +89,7 @@ describe("calcularSlots", () => {
 
   it("respeta el gap alrededor de ocupaciones existentes", () => {
     const parametros = parametrosBase({
-      franja: { apertura: "08:00", cierre: "12:00" },
+      franjas: [{ apertura: "08:00", cierre: "12:00", descansos: [] }],
     });
     const ocupada = fechaHoraLimaADate(parametros.fecha, "10:00");
     const slots = calcularSlots({
@@ -84,9 +106,7 @@ describe("calcularSlots", () => {
 
   it("la antelación mínima descarta slots demasiado próximos", () => {
     const futuro = new Date(Date.now() + 60 * 60_000);
-    const fecha = futuro.toLocaleDateString("en-CA", {
-      timeZone: "America/Lima",
-    });
+    const fecha = futuro.toLocaleDateString("en-CA", { timeZone: "America/Lima" });
     const hhmm = futuro.toLocaleTimeString("en-GB", {
       timeZone: "America/Lima",
       hour: "2-digit",
@@ -96,7 +116,7 @@ describe("calcularSlots", () => {
       parametrosBase({
         fecha,
         weekday: futuro.getDay(),
-        franja: { apertura: "00:00", cierre: "23:59" },
+        franjas: [{ apertura: "00:00", cierre: "23:59", descansos: [] }],
         leadMinutos: 60,
       }),
     );
@@ -111,14 +131,10 @@ describe("calcularSlots", () => {
   it("un slot debe caber completo en el horario laboral", () => {
     const slots = calcularSlots(
       parametrosBase({
-        franja: { apertura: "09:00", cierre: "10:30" },
+        franjas: [{ apertura: "09:00", cierre: "10:30", descansos: [] }],
       }),
     );
-    expect(slots.map((s) => s.etiqueta)).toEqual([
-      "09:00",
-      "09:15",
-      "09:30",
-    ]);
+    expect(slots.map((s) => s.etiqueta)).toEqual(["09:00", "09:15", "09:30"]);
   });
 });
 
@@ -126,36 +142,38 @@ describe("slotSigueDisponible", () => {
   it("rechaza slots fuera del horario laboral", () => {
     const slot = fechaHoraLimaADate("2026-10-20", "07:30");
     expect(
-      slotSigueDisponible(slot.toISOString(), parametrosBase({ leadMinutos: 0 })),
+      slotSigueDisponible(
+        slot.toISOString(),
+        parametrosBase({ fecha: "2026-10-20" }),
+      ),
     ).toBe(false);
   });
 
   it("rechaza slots en conflicto con ocupaciones con gap", () => {
-    const ocupada = fechaHoraLimaADate("2026-10-20", "10:00");
-    const slot = fechaHoraLimaADate("2026-10-20", "09:30");
+    const parametros = parametrosBase();
+    const ocupada = fechaHoraLimaADate(parametros.fecha, "10:00");
+    const slot = fechaHoraLimaADate(parametros.fecha, "09:30");
     expect(
       slotSigueDisponible(
         slot.toISOString(),
-        parametrosBase({
-          leadMinutos: 0,
+        {
+          ...parametros,
           ocupaciones: [
             {
               desde: ocupada,
               hasta: new Date(ocupada.getTime() + 60 * 60_000),
             },
           ],
-        }),
+        },
       ),
     ).toBe(false);
   });
 
   it("acepta un slot válido y desocupado dentro de la antelación", () => {
-    const slot = fechaHoraLimaADate("2026-10-20", "09:00");
+    const parametros = parametrosBase();
+    const slot = fechaHoraLimaADate(parametros.fecha, "09:00");
     expect(
-      slotSigueDisponible(
-        slot.toISOString(),
-        parametrosBase({ leadMinutos: 0 }),
-      ),
+      slotSigueDisponible(slot.toISOString(), parametros),
     ).toBe(slot.getTime() >= Date.now());
   });
 });
