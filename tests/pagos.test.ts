@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { createHmac, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
@@ -94,6 +94,17 @@ async function crearReserva(): Promise<ReservaCreada> {
 }
 
 describe("flujo de pagos del simulador", () => {
+  beforeAll(async () => {
+    const entorno = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    if (!entorno.includes("127.0.0.1")) {
+      throw new Error("Estos tests solo corren contra el stack local");
+    }
+    await supabase
+      .from("bookings")
+      .delete()
+      .in("status", ["HELD", "PENDING_PAYMENT", "CONFIRMED", "EXPIRED"]);
+    await supabase.from("patients").delete().neq("phone", "INEXISTENTE");
+  });
   it("pago aprobado confirma la cita y los webhooks duplicados no duplican", async () => {
     const reserva = await crearReserva();
     const inicio = await iniciarPagoReserva(reserva.token);

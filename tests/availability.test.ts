@@ -32,9 +32,10 @@ function parametrosBase(
 
 describe("calcularSlots", () => {
   it("genera slots alineados al paso dentro del horario laboral", () => {
-    const slots = calcularSlots(
-      parametrosBase({ franja: { apertura: "09:00", cierre: "11:00" } }),
-    );
+    const parametros = parametrosBase({
+      franja: { apertura: "09:00", cierre: "11:00" },
+    });
+    const slots = calcularSlots(parametros);
     expect(slots.map((s) => s.etiqueta)).toEqual([
       "09:00",
       "09:15",
@@ -42,7 +43,7 @@ describe("calcularSlots", () => {
       "09:45",
       "10:00",
     ]);
-    expect(slots[0]?.inicioUtc).toBe("2026-10-20T14:00:00.000Z");
+    expect(slots[0]?.inicioUtc).toBe(`${parametros.fecha}T14:00:00.000Z`);
   });
 
   it("no genera slots cuando el día está cerrado", () => {
@@ -65,23 +66,19 @@ describe("calcularSlots", () => {
   });
 
   it("respeta el gap alrededor de ocupaciones existentes", () => {
-    const ocupada = fechaHoraLimaADate("2026-10-20", "10:00");
-    const slots = calcularSlots(
-      parametrosBase({
-        franja: { apertura: "08:00", cierre: "12:00" },
-        ocupaciones: [
-          {
-            desde: ocupada,
-            hasta: new Date(ocupada.getTime() + 60 * 60_000),
-          },
-        ],
-      }),
-    );
-    const etiquetas = slots.map((s) => s.etiqueta);
-    for (const prohibida of ["09:00", "09:15", "10:00", "10:45"]) {
-      expect(etiquetas).not.toContain(prohibida);
-    }
-    expect(etiquetas).toContain("08:45");
+    const parametros = parametrosBase({
+      franja: { apertura: "08:00", cierre: "12:00" },
+    });
+    const ocupada = fechaHoraLimaADate(parametros.fecha, "10:00");
+    const slots = calcularSlots({
+      ...parametros,
+      ocupaciones: [
+        {
+          desde: ocupada,
+          hasta: new Date(ocupada.getTime() + 60 * 60_000),
+        },
+      ],
+    });
     expect(slots.map((s) => s.etiqueta)).toEqual(["08:00", "08:15", "08:30", "08:45"]);
   });
 

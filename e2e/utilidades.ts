@@ -32,8 +32,11 @@ export async function limpiarAgendaLocal(): Promise<void> {
     throw new Error("La limpieza de pruebas solo corre contra el stack local");
   }
 
-  await supabase.from("bookings").delete().neq("status", "INEXISTENTE");
-  await supabase.from("patients").delete().neq("full_name", "INEXISTENTE");
+  await supabase
+    .from("bookings")
+    .delete()
+    .in("status", ["HELD", "PENDING_PAYMENT", "CONFIRMED", "EXPIRED"]);
+  await supabase.from("patients").delete().neq("phone", "INEXISTENTE");
 }
 
 /** Recorre hasta 5 fechas siguientes hasta encontrar un día con slots. */
