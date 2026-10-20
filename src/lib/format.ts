@@ -1,10 +1,12 @@
-export function formatPen(amount: number): string {
-  const fixed = Math.abs(amount).toFixed(2);
+/** Formatea un monto en céntimos → "S/ 20,00" (regla del proyecto). */
+export function formatPen(cents: number): string {
+  const amount = Math.abs(cents) / 100;
+  const fixed = amount.toFixed(2);
   const parts = fixed.split(".");
   const entera = parts[0] ?? "0";
   const decimales = parts[1] ?? "00";
   const miles = entera.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  const signo = amount < 0 ? "-" : "";
+  const signo = cents < 0 ? "-" : "";
   return `${signo}S/ ${miles},${decimales}`;
 }
 

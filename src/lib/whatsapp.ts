@@ -6,7 +6,8 @@ export type WhatsAppIntent =
   | "cita"
   | "paquetes"
   | "pago"
-  | "orientacion";
+  | "orientacion"
+  | "adelanto";
 
 const MESSAGES: Record<WhatsAppIntent, string> = {
   general: "Hola ALMAE, quisiera información sobre sus servicios.",
@@ -15,6 +16,7 @@ const MESSAGES: Record<WhatsAppIntent, string> = {
   paquetes: "Hola ALMAE, quisiera información sobre paquetes de sesiones.",
   pago: "Hola ALMAE, necesito ayuda con el pago de mi reserva.",
   orientacion: "Hola ALMAE, quisiera orientación sobre qué tratamiento me conviene.",
+  adelanto: "Hola ALMAE, ya separé mi horario. Quisiera coordinar el adelanto:",
 };
 
 export function buildWhatsAppUrl(

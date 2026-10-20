@@ -3,13 +3,12 @@ import {
   calcularSlots,
   fechaHoraLimaADate,
   type DatosVariante,
-  type Descanso,
-  type FranjaLaboral,
+  type FranjaDia,
   type Ocupacion,
   type ParametrosDisponibilidad,
   type Slot,
 } from "@/lib/services/availability";
-import { expirarHolds } from "@/lib/services/reservas";
+import { expirarRetenciones } from "@/lib/services/reservas";
 
 export type DisponibilidadDia = {
   ok: boolean;
@@ -23,7 +22,7 @@ export async function disponibilidadDeDia(
   variantId: string,
   fecha: string,
 ): Promise<DisponibilidadDia> {
-  await expirarHolds();
+  await expirarRetenciones();
 
   const supabase = createSupabaseServiceClient();
 
@@ -64,23 +63,26 @@ export async function disponibilidadDeDia(
   }
 
   const weekday = new Date(`${fecha}T12:00:00-05:00`).getUTCDay();
+  const dayISO = weekday === 0 ? 7 : weekday;
 
-  const { data: horas } = await supabase
+  const { data: bloquesDia } = await supabase
     .from("business_hours")
     .select("opens_at, closes_at, break_start, break_end")
-    .eq("weekday", weekday)
-    .maybeSingle();
+    .eq("day_of_week", dayISO);
 
-  let franja: FranjaLaboral | null = null;
-  let descansos: Descanso[] = [];
+  const franjas: FranjaDia[] = (bloquesDia ?? [])
+    .filter((b) => Boolean(b.opens_at) && Boolean(b.closes_at))
+    .map((b) => ({
+      apertura: b.opens_at,
+      cierre: b.closes_at,
+      descansos:
+        b.break_start && b.break_end
+          ? [{ desdeHora: b.break_start, hastaHora: b.break_end }]
+          : [],
+    }));
 
-  if (horas) {
-    franja = { apertura: horas.opens_at, cierre: horas.closes_at };
-    if (horas.break_start && horas.break_end) {
-      descansos = [
-        { desdeHora: horas.break_start, hastaHora: horas.break_end },
-      ];
-    }
+  if (franjas.length === 0) {
+    return { ok: true, fecha, slots: [] };
   }
 
   const { data: excepciones } = await supabase
@@ -89,17 +91,28 @@ export async function disponibilidadDeDia(
     .lte("date_from", fecha)
     .gte("date_to", fecha);
 
+  let cerradoPorExcepcion = false;
+  const descansosExtra: { desdeHora: string; hastaHora: string }[] = [];
+
   for (const excepcion of excepciones ?? []) {
     if (excepcion.kind === "full_day" || excepcion.kind === "holiday") {
-      franja = null;
+      cerradoPorExcepcion = true;
       break;
     }
-    if (excepcion.time_from && excepcion.time_to) {
-      descansos.push({
+    if (excepcion.kind === "partial" && excepcion.time_from && excepcion.time_to) {
+      descansosExtra.push({
         desdeHora: excepcion.time_from,
         hastaHora: excepcion.time_to,
       });
     }
+  }
+
+  if (cerradoPorExcepcion) {
+    return { ok: true, fecha, slots: [] };
+  }
+
+  for (const franja of franjas) {
+    franja.descansos.push(...descansosExtra);
   }
 
   const diaInicioUtc = fechaHoraLimaADate(fecha, "00:00").toISOString();
@@ -107,23 +120,29 @@ export async function disponibilidadDeDia(
     fechaHoraLimaADate(fecha, "00:00").getTime() + 24 * 60 * 60_000,
   ).toISOString();
 
-  const { data: ocupadas } = await supabase
-    .from("bookings")
-    .select("starts_at, ends_at")
-    .in("status", ["HELD", "PENDING_PAYMENT", "CONFIRMED"])
-    .lt("starts_at", diaFinUtc)
-    .gt("ends_at", diaInicioUtc);
+  const [{ data: citas }, { data: bloqueos }] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("starts_at, ends_at")
+      .in("status", ["HELD", "PENDING_PAYMENT", "CONFIRMED"])
+      .lt("starts_at", diaFinUtc)
+      .gt("ends_at", diaInicioUtc),
+    supabase
+      .from("schedule_blocks")
+      .select("starts_at, ends_at")
+      .lt("starts_at", diaFinUtc)
+      .gt("ends_at", diaInicioUtc),
+  ]);
 
-  const ocupaciones: Ocupacion[] = (ocupadas ?? []).map((o) => ({
-    desde: new Date(o.starts_at),
-    hasta: new Date(o.ends_at),
-  }));
+  const ocupaciones: Ocupacion[] = [
+    ...(citas ?? []).map((o) => ({ desde: new Date(o.starts_at), hasta: new Date(o.ends_at) })),
+    ...(bloqueos ?? []).map((o) => ({ desde: new Date(o.starts_at), hasta: new Date(o.ends_at) })),
+  ];
 
   const parametros: ParametrosDisponibilidad = {
     fecha,
     weekday,
-    franja,
-    descansos,
+    franjas,
     pasoMinutos: 15,
     gapMinutos: settings.booking_gap_minutes,
     leadMinutos: settings.min_booking_lead_hours * 60,

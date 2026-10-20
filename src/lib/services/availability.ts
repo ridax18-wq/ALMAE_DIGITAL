@@ -4,14 +4,16 @@ export interface DatosVariante {
   prepBufferMinutos: number;
 }
 
-export interface FranjaLaboral {
-  apertura: string;
-  cierre: string;
-}
-
 export interface Descanso {
   desdeHora: string;
   hastaHora: string;
+}
+
+/** Una ventana de atención del día, con sus propios descansos. */
+export interface FranjaDia {
+  apertura: string;
+  cierre: string;
+  descansos: Descanso[];
 }
 
 export interface Ocupacion {
@@ -22,12 +24,10 @@ export interface Ocupacion {
 export interface ParametrosDisponibilidad {
   /** Fecha local Lima "YYYY-MM-DD". */
   fecha: string;
-  /** Día de la semana (0 = domingo … 6 = sábado). */
+  /** Día de la semana JS (0 = domingo … 6 = sábado). */
   weekday: number;
-  /** Horario laboral del día; null/ausente = cerrado. */
-  franja: FranjaLaboral | null;
-  /** Descansos del día (p. ej. almuerzo). */
-  descansos: Descanso[];
+  /** Ventanas de atención del día; vacío = cerrado. */
+  franjas: FranjaDia[];
   /** Granularidad de slots en minutos. */
   pasoMinutos: number;
   /** Separación mínima entre citas. */
@@ -36,7 +36,7 @@ export interface ParametrosDisponibilidad {
   leadMinutos: number;
   /** Variante a agendar. */
   variante: DatosVariante;
-  /** Ocupaciones activas (rangos UTC). */
+  /** Ocupaciones activas (citas + retenciones + bloqueos) en rangos UTC. */
   ocupaciones: Ocupacion[];
 }
 
@@ -74,64 +74,67 @@ function rangosSolapados(
 
 /**
  * Calcula los slots disponibles para una variante en una fecha.
- * Reglas: horario laboral, descansos, duración + prep, gap, ocupaciones
- * vigentes y antelación mínima. Sin acceso a datos: los insumos llegan listos.
+ * Reglas: ventanas laborales (con varios bloques), descansos, duración + prep,
+ * gap, ocupaciones vigentes y antelación mínima. Sin acceso a datos.
  */
 export function calcularSlots(parametros: ParametrosDisponibilidad): Slot[] {
-  const { franja, variante, pasoMinutos, gapMinutos, leadMinutos } = parametros;
-  if (!franja) return [];
+  const { franjas, variante, pasoMinutos, gapMinutos, leadMinutos } = parametros;
 
-  const apertura = minutosDe(franja.apertura);
-  const cierre = minutosDe(franja.cierre);
-  if (apertura >= cierre) return [];
-
-  const duracionTotal =
-    variante.duracionMinutos + variante.prepBufferMinutos;
+  const duracionTotal = variante.duracionMinutos + variante.prepBufferMinutos;
   const ahora = Date.now();
   const slots: Slot[] = [];
 
-  for (
-    let minutos = apertura;
-    minutos + duracionTotal <= cierre;
-    minutos += pasoMinutos
-  ) {
-    const inicio = fechaHoraLimaADate(parametros.fecha, hhmmDe(minutos));
-    const fin = new Date(inicio.getTime() + duracionTotal * MS_POR_MINUTO);
+  for (const franja of franjas) {
+    const apertura = minutosDe(franja.apertura);
+    const cierre = minutosDe(franja.cierre);
+    if (apertura >= cierre) continue;
 
-    const chocaDescanso = parametros.descansos.some((d) => {
-      const dInicio = fechaHoraLimaADate(parametros.fecha, d.desdeHora);
-      const dFin = fechaHoraLimaADate(parametros.fecha, d.hastaHora);
-      return rangosSolapados(
-        { desde: inicio.getTime(), hasta: fin.getTime() },
-        { desde: dInicio.getTime(), hasta: dFin.getTime() },
+    for (
+      let minutos = apertura;
+      minutos + duracionTotal <= cierre;
+      minutos += pasoMinutos
+    ) {
+      const inicio = fechaHoraLimaADate(parametros.fecha, hhmmDe(minutos));
+      const fin = new Date(inicio.getTime() + duracionTotal * MS_POR_MINUTO);
+
+      const chocaDescanso = franja.descansos.some((d) =>
+        rangosSolapados(
+          { desde: inicio.getTime(), hasta: fin.getTime() },
+          {
+            desde: fechaHoraLimaADate(parametros.fecha, d.desdeHora).getTime(),
+            hasta: fechaHoraLimaADate(parametros.fecha, d.hastaHora).getTime(),
+          },
+        ),
       );
-    });
-    if (chocaDescanso) continue;
+      if (chocaDescanso) continue;
 
-    const chocaOcupacion = parametros.ocupaciones.some((o) => {
-      const margen = gapMinutos * MS_POR_MINUTO;
-      return rangosSolapados(
-        { desde: inicio.getTime(), hasta: fin.getTime() },
-        { desde: o.desde.getTime() - margen, hasta: o.hasta.getTime() + margen },
+      const chocaOcupacion = parametros.ocupaciones.some((o) =>
+        rangosSolapados(
+          { desde: inicio.getTime(), hasta: fin.getTime() },
+          {
+            desde: o.desde.getTime() - gapMinutos * MS_POR_MINUTO,
+            hasta: o.hasta.getTime() + gapMinutos * MS_POR_MINUTO,
+          },
+        ),
       );
-    });
-    if (chocaOcupacion) continue;
+      if (chocaOcupacion) continue;
 
-    if (inicio.getTime() < ahora + leadMinutos * MS_POR_MINUTO) continue;
+      if (inicio.getTime() < ahora + leadMinutos * MS_POR_MINUTO) continue;
 
-    slots.push({
-      inicioUtc: inicio.toISOString(),
-      finUtc: fin.toISOString(),
-      etiqueta: hhmmDe(minutos),
-    });
+      slots.push({
+        inicioUtc: inicio.toISOString(),
+        finUtc: fin.toISOString(),
+        etiqueta: hhmmDe(minutos),
+      });
+    }
   }
 
   return slots;
 }
 
 /**
- * Valida (server-side, antes de la RPC) que un slot solicitado sigue
- * disponible con las mismas reglas del cálculo. La RPC revalida en la BD.
+ * Valida (server-side) que un slot solicitado sigue disponible con las
+ * mismas reglas del cálculo. La RPC revalida en la base de datos.
  */
 export function slotSigueDisponible(
   slotUtc: string,
@@ -140,34 +143,29 @@ export function slotSigueDisponible(
   const inicio = new Date(slotUtc).getTime();
   if (Number.isNaN(inicio)) return false;
 
-  const { franja, variante, gapMinutos, leadMinutos, ocupaciones } = parametros;
-  if (!franja) return false;
+  const { franjas, variante, gapMinutos, leadMinutos, ocupaciones } = parametros;
 
-  const duracionTotal =
-    variante.duracionMinutos + variante.prepBufferMinutos;
+  const duracionTotal = variante.duracionMinutos + variante.prepBufferMinutos;
   const fin = inicio + duracionTotal * MS_POR_MINUTO;
 
-  const aperturaUtc = fechaHoraLimaADate(
-    parametros.fecha,
-    franja.apertura,
-  ).getTime();
-  const cierreUtc = fechaHoraLimaADate(
-    parametros.fecha,
-    franja.cierre,
-  ).getTime();
+  const dentroDeAlgunaVentana = franjas.some((franja) => {
+    const aperturaUtc = fechaHoraLimaADate(parametros.fecha, franja.apertura).getTime();
+    const cierreUtc = fechaHoraLimaADate(parametros.fecha, franja.cierre).getTime();
+    if (inicio < aperturaUtc || fin > cierreUtc) return false;
 
-  if (inicio < aperturaUtc || fin > cierreUtc) return false;
+    const chocaDescanso = franja.descansos.some((d) =>
+      rangosSolapados(
+        { desde: inicio, hasta: fin },
+        {
+          desde: fechaHoraLimaADate(parametros.fecha, d.desdeHora).getTime(),
+          hasta: fechaHoraLimaADate(parametros.fecha, d.hastaHora).getTime(),
+        },
+      ),
+    );
+    return !chocaDescanso;
+  });
 
-  const chocaDescanso = parametros.descansos.some((d) =>
-    rangosSolapados(
-      { desde: inicio, hasta: fin },
-      {
-        desde: fechaHoraLimaADate(parametros.fecha, d.desdeHora).getTime(),
-        hasta: fechaHoraLimaADate(parametros.fecha, d.hastaHora).getTime(),
-      },
-    ),
-  );
-  if (chocaDescanso) return false;
+  if (!dentroDeAlgunaVentana) return false;
 
   const chocaOcupacion = ocupaciones.some((o) =>
     rangosSolapados(

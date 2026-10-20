@@ -5,6 +5,7 @@ export type ResultadoReserva = {
   error?: string;
   yaCreada?: boolean;
   token?: string;
+  codigoPublico?: string;
   expira?: string;
   termina?: string;
   etiqueta?: string;
@@ -31,22 +32,19 @@ const ERRORES_AMIGABLES: Record<string, string> = {
     "Ese horario ya no se puede reservar (antelación o fecha inválida). Selecciona otro.",
   fuera_de_horario:
     "Ese horario quedó fuera del horario de atención. Elige otro horario.",
-  agenda_bloqueada:
-    "Ese día está bloqueado. Elige otra fecha.",
+  agenda_bloqueada: "Ese día está bloqueado. Elige otra fecha.",
   slot_no_disponible:
     "Ese horario acaba de ser tomado. Elige otro horario disponible.",
-  configuracion_ausente:
-    "Configuración pendiente del negocio. Intenta más tarde.",
+  configuracion_ausente: "Configuración pendiente del negocio. Intenta más tarde.",
+  interno: "Error interno del sistema. Intenta de nuevo.",
 };
 
 export async function crearReserva(
   entrada: EntradaReserva,
 ): Promise<ResultadoReserva> {
-  await expirarHolds();
-
   const supabase = createSupabaseServiceClient();
 
-  const { data, error } = await supabase.rpc("crear_reserva_con_hold", {
+  const { data, error } = await supabase.rpc("crear_retencion_web", {
     p_service_slug: entrada.servicio,
     p_variant_id: entrada.variante,
     p_starts_at: entrada.inicio,
@@ -57,7 +55,7 @@ export async function crearReserva(
       notes: entrada.notas,
       consent: entrada.consentimiento,
     },
-    p_marketing: {
+    p_utm: {
       utm_source: entrada.utm?.source ?? null,
       utm_medium: entrada.utm?.medium ?? null,
       utm_campaign: entrada.utm?.campaign ?? null,
@@ -74,6 +72,7 @@ export async function crearReserva(
     error?: string;
     ya_creada?: boolean;
     token?: string;
+    public_code?: string;
     expires_at?: string;
     ends_at?: string;
     etiqueta?: string;
@@ -82,7 +81,8 @@ export async function crearReserva(
   if (!respuesta.ok) {
     return {
       ok: false,
-      error: ERRORES_AMIGABLES[respuesta.error ?? ""] ?? ERRORES_AMIGABLES.slot_no_disponible,
+      error:
+        ERRORES_AMIGABLES[respuesta.error ?? ""] ?? ERRORES_AMIGABLES.slot_no_disponible,
     };
   }
 
@@ -90,6 +90,7 @@ export async function crearReserva(
     ok: true,
     yaCreada: respuesta.ya_creada ?? false,
     token: respuesta.token,
+    codigoPublico: respuesta.public_code,
     expira: respuesta.expires_at,
     termina: respuesta.ends_at,
     etiqueta: respuesta.etiqueta,
@@ -99,14 +100,17 @@ export async function crearReserva(
 export type ReservaVista = {
   id: string;
   status: string;
+  origin: string;
   service: string;
   slug: string;
   duracionMin: number;
   inicioLima: string;
   finLima: string;
-  totalAmount: number;
-  advanceAmount: number;
+  amountCents: number;
+  depositRequiredCents: number;
+  depositVerifiedCents: number;
   currency: string;
+  codigoPublico: string;
   notes: string;
   holdExpira: string | null;
   tokenExpira: string;
@@ -131,14 +135,17 @@ export async function obtenerReserva(token: string): Promise<ReservaVista | null
   return {
     id: String(reserva.id),
     status: String(reserva.status),
+    origin: String(reserva.origin),
     service: String(reserva.service),
     slug: String(reserva.slug),
     duracionMin: Number(reserva.duracion_min),
     inicioLima: String(reserva.inicio_lima),
     finLima: String(reserva.fin_lima),
-    totalAmount: Number(reserva.total_amount),
-    advanceAmount: Number(reserva.advance_amount),
+    amountCents: Number(reserva.amount_cents),
+    depositRequiredCents: Number(reserva.deposit_required_cents),
+    depositVerifiedCents: Number(reserva.deposit_verified_cents),
     currency: String(reserva.currency),
+    codigoPublico: String(reserva.public_code),
     notes: String(reserva.notes ?? ""),
     holdExpira: reserva.hold_expira ? String(reserva.hold_expira) : null,
     tokenExpira: String(reserva.token_expira),
@@ -149,13 +156,18 @@ export async function obtenerReserva(token: string): Promise<ReservaVista | null
   };
 }
 
-export type ResultadoCancelacion = { ok: boolean; error?: string; status?: string };
+export type ResultadoCancelacion = {
+  ok: boolean;
+  error?: string;
+  status?: string;
+};
 
 export async function cancelarReserva(token: string): Promise<ResultadoCancelacion> {
   const supabase = createSupabaseServiceClient();
 
   const { data, error } = await supabase.rpc("cancelar_reserva_por_token", {
     p_token: token,
+    p_motivo: "",
   });
 
   if (error) {
@@ -177,10 +189,10 @@ export async function cancelarReserva(token: string): Promise<ResultadoCancelaci
   return { ok: true, status: respuesta.status };
 }
 
-export async function expirarHolds(): Promise<number> {
+export async function expirarRetenciones(): Promise<number> {
   const supabase = createSupabaseServiceClient();
 
-  const { data, error } = await supabase.rpc("expirar_holds");
+  const { data, error } = await supabase.rpc("expirar_retenciones");
   if (error) return 0;
   return Number(data ?? 0);
 }
