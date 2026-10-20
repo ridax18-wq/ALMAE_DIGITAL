@@ -9,6 +9,7 @@ import {
   type ParametrosDisponibilidad,
   type Slot,
 } from "@/lib/services/availability";
+import { expirarHolds } from "@/lib/services/reservas";
 
 export type DisponibilidadDia = {
   ok: boolean;
@@ -22,6 +23,8 @@ export async function disponibilidadDeDia(
   variantId: string,
   fecha: string,
 ): Promise<DisponibilidadDia> {
+  await expirarHolds();
+
   const supabase = createSupabaseServiceClient();
 
   const { data: variant } = await supabase

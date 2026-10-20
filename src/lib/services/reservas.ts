@@ -42,6 +42,8 @@ const ERRORES_AMIGABLES: Record<string, string> = {
 export async function crearReserva(
   entrada: EntradaReserva,
 ): Promise<ResultadoReserva> {
+  await expirarHolds();
+
   const supabase = createSupabaseServiceClient();
 
   const { data, error } = await supabase.rpc("crear_reserva_con_hold", {

@@ -35,3 +35,32 @@ export async function limpiarAgendaLocal(): Promise<void> {
   await supabase.from("bookings").delete().neq("status", "INEXISTENTE");
   await supabase.from("patients").delete().neq("full_name", "INEXISTENTE");
 }
+
+/** Recorre hasta 5 fechas siguientes hasta encontrar un día con slots. */
+export async function encontrarDiaConHorarios(
+  page: import("@playwright/test").Page,
+): Promise<boolean> {
+  for (let desplazamiento = 0; desplazamiento < 5; desplazamiento += 1) {
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() + desplazamiento);
+    const iso = fecha.toLocaleDateString("en-CA", { timeZone: "America/Lima" });
+    await page.fill("#fecha", iso);
+    await page.getByRole("button", { name: "Ver horarios" }).click();
+    await page.waitForTimeout(700);
+    if ((await page.locator("fieldset button").count()) > 0) return true;
+  }
+  return false;
+}
+
+/** Elige un horario estable (18:00) o el último disponible. */
+export async function elegirHorarioEstable(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  const chips = page.locator("fieldset button");
+  const chipEstable = chips.filter({ hasText: "18:00" });
+  if ((await chipEstable.count()) > 0) {
+    await chipEstable.first().click();
+  } else {
+    await chips.last().click();
+  }
+}

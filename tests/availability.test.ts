@@ -6,17 +6,24 @@ import {
   type ParametrosDisponibilidad,
 } from "@/lib/services/availability";
 
+function fechaFutura(dias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toLocaleDateString("en-CA", { timeZone: "America/Lima" });
+}
+
 function parametrosBase(
   overrides: Partial<ParametrosDisponibilidad> = {},
 ): ParametrosDisponibilidad {
+  const fecha = fechaFutura(7);
   return {
-    fecha: "2026-10-20",
-    weekday: 2,
+    fecha,
+    weekday: new Date(`${fecha}T12:00:00-05:00`).getUTCDay(),
     franja: { apertura: "08:00", cierre: "20:00" },
     descansos: [],
     pasoMinutos: 15,
     gapMinutos: 15,
-    leadMinutos: 180,
+    leadMinutos: 0,
     variante: { id: "v1", duracionMinutos: 60, prepBufferMinutos: 0 },
     ocupaciones: [],
     ...overrides,

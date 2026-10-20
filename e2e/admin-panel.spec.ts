@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { limpiarAgendaLocal } from "./utilidades";
+import {
+  elegirHorarioEstable,
+  encontrarDiaConHorarios,
+  limpiarAgendaLocal,
+} from "./utilidades";
 
 const SECCIONES = [
   { nombre: "Agenda", url: /\/admin\/agenda/ },
@@ -29,8 +33,10 @@ test.describe("FASE 6 — panel administrativo", () => {
     await entrarComoOwner(page);
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
+    const nav = page.getByRole("navigation", { name: "Secciones del panel" });
+
     for (const seccion of SECCIONES) {
-      await page.getByRole("link", { name: seccion.nombre, exact: true }).click();
+      await nav.getByRole("link", { name: seccion.nombre, exact: true }).click();
       await expect(page).toHaveURL(seccion.url);
       await expect(page.locator("main").first()).toBeVisible();
     }
@@ -39,18 +45,8 @@ test.describe("FASE 6 — panel administrativo", () => {
   test("un pago manual confirma la reserva del paciente", async ({ page }) => {
     await page.goto("/reservar");
     await page.getByRole("button", { name: /Terapia física/ }).first().click();
-    const fecha = new Date();
-    fecha.setDate(fecha.getDate() + 1);
-    await page.fill("#fecha", fecha.toLocaleDateString("en-CA", { timeZone: "America/Lima" }));
-    await page.getByRole("button", { name: "Ver horarios" }).click();
-    await page.waitForTimeout(700);
-    const chips = page.locator("fieldset button");
-    const chipEstable = chips.filter({ hasText: "18:00" });
-    if ((await chipEstable.count()) > 0) {
-      await chipEstable.first().click();
-    } else {
-      await chips.last().click();
-    }
+    expect(await encontrarDiaConHorarios(page)).toBe(true);
+    await elegirHorarioEstable(page);
     await page.fill("#nombre", "Paciente Admin E2E");
     await page.fill("#telefono", "988776655");
     await page.check('input[name="consent"]');
