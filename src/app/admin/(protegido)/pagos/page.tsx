@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { verificarPagoPage, rechazarPagoPage } from "@/app/admin/(protegido)/pagos/actions";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { formatPen } from "@/lib/format";
 
@@ -9,163 +11,126 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function PagosPage() {
+const ETIQUETA_ESTADO_PAGO: Record<string, { texto: string; clases: string }> = {
+  REPORTED: { texto: "REPORTED (por verificar)", clases: "border-amber-200 bg-amber-50 text-amber-900" },
+  VERIFIED: { texto: "VERIFIED", clases: "border-green-200 bg-green-50 text-green-900" },
+  REJECTED: { texto: "REJECTED", clases: "border-red-200 bg-red-50 text-red-900" },
+};
+
+export default async function PagosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: errorUrl } = await searchParams;
   const supabase = createSupabaseServiceClient();
 
-  const { data: pagos } = await supabase
-    .from("payments")
+  const { data: adelantos } = await supabase
+    .from("manual_payments")
     .select(
-      "id, provider, external_reference, amount, currency, status, method, occurred_at, created_at, booking_id",
+      "id, method, amount_cents, verification_status, transaction_reference, paid_at, verified_at, rejection_reason, created_at, booking:bookings(id, public_code, status, patient:patients(full_name, phone))",
     )
     .order("created_at", { ascending: false })
     .limit(80);
 
-  const { data: conciliaciones } = await supabase
-    .from("payment_reconciliation")
-    .select("id, reason, note, created_at, payment_id")
-    .is("resolved_at", null)
-    .order("created_at", { ascending: false });
-
-  const idsReserva = Array.from(
-    new Set(
-      (pagos ?? [])
-        .map((p) => String(p.booking_id ?? ""))
-        .filter((id) => id.length > 0),
-    ),
-  );
-
-  const { data: reservas } = idsReserva.length
-    ? await supabase
-        .from("bookings")
-        .select("id, patient_id")
-        .in("id", idsReserva)
-    : { data: [] };
-
-  const pacientePorReserva = new Map(
-    (reservas ?? []).map((r) => [String(r.id), String(r.patient_id)]),
-  );
-
-  const idsPacientes = Array.from(new Set(pacientePorReserva.values()));
-
-  const { data: pacientes } = idsPacientes.length
-    ? await supabase
-        .from("patients")
-        .select("id, full_name")
-        .in("id", idsPacientes)
-    : { data: [] };
-
-  const nombrePaciente = new Map(
-    (pacientes ?? []).map((p) => [String(p.id), p.full_name]),
-  );
-
-  const pagoPorId = new Map((pagos ?? []).map((p) => [String(p.id), p]));
-
-  const nombreDePago = (paymentId: string): string => {
-    const pago = pagoPorId.get(paymentId);
-    if (!pago?.booking_id) return "Sin reserva";
-    return (
-      nombrePaciente.get(pacientePorReserva.get(String(pago.booking_id)) ?? "") ??
-      "Paciente"
-    );
-  };
+  const filas = (adelantos ?? []).map((a) => {
+    const reserva = (a.booking as unknown as { id: string; public_code: string; status: string; patient: { full_name: string; phone: string } } | null) ?? null;
+    return { adelanto: a, reserva };
+  });
 
   return (
     <main className="py-8">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <h1 className="font-display text-2xl font-bold text-ink-900">Pagos</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Adelantos y pagos manuales · los pagos manuales se registran desde el
-          detalle de cada reserva
+          Adelantos manuales coordinados por WhatsApp · un pago REPORTED no es
+          un pago verificado
         </p>
 
-        <section aria-label="Conciliaciones pendientes" className="mt-6">
-          <h2 className="mb-3 text-sm font-bold tracking-wide uppercase text-ink-700">
-            Conciliaciones pendientes ({(conciliaciones ?? []).length})
-          </h2>
-          <ul className="divide-y divide-sand-200 rounded-2xl border border-sand-200 bg-white shadow-xs">
-            {(conciliaciones ?? []).map((c) => {
-              const pago = pagoPorId.get(String(c.payment_id));
-              return (
-                <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                  <span className="font-medium text-ink-900">
-                    {nombreDePago(String(c.payment_id))} ·{" "}
-                    {formatPen(Number(pago?.amount ?? 0))} ({pago?.currency})
-                  </span>
-                  <span className="flex items-center gap-3 text-xs text-ink-500">
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">
-                      {c.reason}
-                    </span>
-                    {String(c.created_at).slice(0, 16).replace("T", " ")}
-                  </span>
-                </li>
-              );
-            })}
-            {(conciliaciones ?? []).length === 0 ? (
-              <li className="px-4 py-6 text-center text-sm text-ink-500">
-                No hay casos de conciliación pendientes
-              </li>
-            ) : null}
-          </ul>
-        </section>
+        {errorUrl ? (
+          <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {decodeURIComponent(errorUrl)}
+          </p>
+        ) : null}
 
-        <section aria-label="Historial de pagos" className="mt-8">
-          <h2 className="mb-3 text-sm font-bold tracking-wide uppercase text-ink-700">
-            Historial de pagos
-          </h2>
-          <div className="overflow-x-auto rounded-2xl border border-sand-200 bg-white shadow-xs">
-            <table className="w-full text-sm">
-              <thead className="bg-sand-100 text-left text-xs uppercase text-ink-500">
-                <tr>
-                  <th className="px-4 py-2.5">Fecha</th>
-                  <th className="px-4 py-2.5">Paciente</th>
-                  <th className="px-4 py-2.5">Monto</th>
-                  <th className="px-4 py-2.5">Proveedor</th>
-                  <th className="px-4 py-2.5">Método</th>
-                  <th className="px-4 py-2.5">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-sand-200">
-                {(pagos ?? []).map((p) => (
-                  <tr key={p.id} className="hover:bg-sand-50">
+        <div className="mt-5 overflow-x-auto rounded-2xl border border-sand-200 bg-white shadow-xs">
+          <table className="w-full text-sm">
+            <thead className="bg-sand-100 text-left text-xs uppercase text-ink-500">
+              <tr>
+                <th className="px-4 py-2.5">Fecha registro</th>
+                <th className="px-4 py-2.5">Paciente</th>
+                <th className="px-4 py-2.5">Reserva</th>
+                <th className="px-4 py-2.5">Monto</th>
+                <th className="px-4 py-2.5">Método</th>
+                <th className="px-4 py-2.5">Referencia</th>
+                <th className="px-4 py-2.5">Estado</th>
+                <th className="px-4 py-2.5">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-sand-200">
+              {filas.map(({ adelanto, reserva }) => {
+                const etiqueta = ETIQUETA_ESTADO_PAGO[adelanto.verification_status] ?? {
+                  texto: adelanto.verification_status,
+                  clases: "border-sand-200 bg-sand-100 text-ink-700",
+                };
+                return (
+                  <tr key={adelanto.id} className="hover:bg-sand-50">
                     <td className="px-4 py-2.5 whitespace-nowrap">
-                      {String(p.occurred_at ?? p.created_at).slice(0, 16).replace("T", " ")}
+                      {String(adelanto.created_at).slice(0, 16).replace("T", " ")}
                     </td>
                     <td className="px-4 py-2.5">
-                      {p.booking_id
-                        ? (nombrePaciente.get(pacientePorReserva.get(String(p.booking_id)) ?? "") ?? "—")
-                        : "—"}
+                      <span className="font-medium text-ink-900">{reserva?.patient?.full_name ?? "—"}</span>
+                      <span className="block text-xs text-ink-500">{reserva?.patient?.phone ?? ""}</span>
                     </td>
-                    <td className="px-4 py-2.5 font-semibold text-ink-900">
-                      {formatPen(Number(p.amount))}
-                    </td>
-                    <td className="px-4 py-2.5">{p.provider}</td>
-                    <td className="px-4 py-2.5">{p.method || "—"}</td>
                     <td className="px-4 py-2.5">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          p.status === "SUCCEEDED"
-                            ? "border border-green-200 bg-green-50 text-green-900"
-                            : ["FAILED", "EXPIRED"].includes(p.status)
-                              ? "border border-sand-200 bg-sand-100 text-ink-700"
-                              : "border border-amber-200 bg-amber-50 text-amber-900"
-                        }`}
-                      >
-                        {p.status}
+                      <Link href={`/admin/reservas/${reserva?.id}`} className="font-mono text-xs font-semibold text-brand-700 hover:underline">
+                        {reserva?.public_code ?? "—"}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2.5 font-semibold text-ink-900">{formatPen(adelanto.amount_cents)}</td>
+                    <td className="px-4 py-2.5">{adelanto.method}</td>
+                    <td className="px-4 py-2.5 text-xs">{adelanto.transaction_reference || "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${etiqueta.clases}`}>
+                        {etiqueta.texto}
                       </span>
+                      {adelanto.rejection_reason ? (
+                        <span className="block text-[11px] text-ink-500">{adelanto.rejection_reason}</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {adelanto.verification_status === "REPORTED" ? (
+                        <span className="flex items-center gap-1.5">
+                          <form action={verificarPagoPage}>
+                            <input type="hidden" name="payment_id" value={adelanto.id} />
+                            <input type="hidden" name="booking_id" value={reserva?.id ?? ""} />
+                            <button type="submit" className="rounded-lg bg-brand-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-800">
+                              Verificar
+                            </button>
+                          </form>
+                          <form action={rechazarPagoPage} className="flex items-center gap-1">
+                            <input type="hidden" name="payment_id" value={adelanto.id} />
+                            <input name="motivo" placeholder="motivo" className="w-20 rounded-lg border border-sand-200 px-2 py-1.5 text-xs" />
+                            <button type="submit" className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-50">
+                              Rechazar
+                            </button>
+                          </form>
+                        </span>
+                      ) : null}
                     </td>
                   </tr>
-                ))}
-                {(pagos ?? []).length === 0 ? (
-                  <tr>
-                    <td className="px-4 py-8 text-center text-ink-500" colSpan={6}>
-                      Sin pagos registrados
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                );
+              })}
+              {filas.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-ink-500" colSpan={8}>
+                    Sin adelantos registrados
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   );

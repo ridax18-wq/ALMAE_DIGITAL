@@ -42,16 +42,21 @@ test.describe("FASE 6 — panel administrativo", () => {
     }
   });
 
+async function reservarHastaToken(page: import("@playwright/test").Page): Promise<void> {
+  await page.goto("/reservar");
+  await page.getByRole("button", { name: /Terapia física/ }).first().click();
+  expect(await encontrarDiaConHorarios(page)).toBe(true);
+  await elegirHorarioEstable(page);
+  await page.fill("#nombre", "Paciente Admin E2E");
+  await page.fill("#telefono", "988776655");
+  await page.check('input[name="consent"]');
+  await page.getByRole("button", { name: "Reservar mi horario" }).click();
+  await page.waitForURL(/\/reserva\/[0-9a-f]{64}$/);
+  await expect(page.locator("main").getByText("Horario separado — coordinando adelanto")).toBeVisible();
+}
+
   test("un pago manual confirma la reserva del paciente", async ({ page }) => {
-    await page.goto("/reservar");
-    await page.getByRole("button", { name: /Terapia física/ }).first().click();
-    expect(await encontrarDiaConHorarios(page)).toBe(true);
-    await elegirHorarioEstable(page);
-    await page.fill("#nombre", "Paciente Admin E2E");
-    await page.fill("#telefono", "988776655");
-    await page.check('input[name="consent"]');
-    await page.getByRole("button", { name: "Reservar mi horario" }).click();
-    await page.waitForURL(/\/reserva\/[0-9a-f]{64}$/);
+    await reservarHastaToken(page);
 
     await entrarComoOwner(page);
     await page.getByRole("link", { name: "Reservas", exact: true }).click();

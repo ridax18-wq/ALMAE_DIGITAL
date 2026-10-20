@@ -151,8 +151,10 @@ export async function guardarServicio(datos: FormData): Promise<void> {
       service_id: servicioId,
       duration_minutes: variante.duration_minutes,
       prep_buffer_minutes: variante.prep_buffer_minutes,
-      price: variante.price,
-      advance_amount: variante.advance_amount ?? null,
+      amount_cents: Math.round(variante.price * 100),
+      deposit_cents: variante.advance_amount
+        ? Math.round(variante.advance_amount * 100)
+        : 0,
     });
     if (error) redirect(`/admin/servicios/${servicioId}?error=variante`);
   }

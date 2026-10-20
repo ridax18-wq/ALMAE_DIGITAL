@@ -16,7 +16,7 @@ export default async function AdminServiciosPage() {
   const { data: servicios } = await supabase
     .from("services")
     .select(
-      "id, slug, name, location, active, sort_order, variants:service_variants(id, duration_minutes, prep_buffer_minutes, price, advance_amount)",
+      "id, slug, name, location, active, sort_order, variants:service_variants(id, duration_minutes, prep_buffer_minutes, amount_cents, deposit_cents)",
     )
     .order("sort_order");
 
@@ -70,7 +70,7 @@ export default async function AdminServiciosPage() {
                   <li key={v.id} className="flex items-center justify-between gap-2">
                     <span>{v.duration_minutes} min</span>
                     <span className="font-semibold text-ink-900">
-                      {formatPen(v.price)}
+                      {formatPen(v.amount_cents)}
                     </span>
                   </li>
                 ))}

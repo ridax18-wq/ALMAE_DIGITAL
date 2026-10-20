@@ -1,234 +1,212 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { TRANSICIONES_ADMIN } from "@/lib/services/estados";
-import { registrarAuditoria } from "@/lib/services/auditoria";
+import {
+  registrarAdelantoManual,
+  verificarAdelanto,
+  rechazarAdelanto,
+  confirmarReservaAdmin,
+  extenderRetencion,
+  completarCita,
+  registrarNoShow,
+  cancelarComoAdmin,
+  reprogramarReserva,
+  type MetodoAdelanto,
+} from "@/lib/services/admin-reservas";
 
-const cambioEstadoSchema = z.object({
-  booking_id: z.uuid(),
-  nuevo_estado: z.enum([
-    "CONFIRMED",
-    "COMPLETED",
-    "NO_SHOW",
-    "CANCELLED",
-    "REFUND_PENDING",
-    "REFUNDED",
-  ]),
-});
+const uuidSchema = z.uuid();
 
-export async function cambiarEstadoReserva(datos: FormData): Promise<void> {
-  const parsed = cambioEstadoSchema.safeParse({
-    booking_id: datos.get("booking_id"),
-    nuevo_estado: datos.get("nuevo_estado"),
+function validarO<T>(
+  redirectUrl: string,
+  resultado: { success: boolean; error?: { issues: { message?: string }[] }; data?: T },
+): T {
+  if (!resultado.success) {
+    redirect(`${redirectUrl}?error=${encodeURIComponent(resultado.error?.issues?.[0]?.message ?? "datos inválidos")}`);
+  }
+  return resultado.data as T;
+}
+
+export async function crearAdelantoManual(datos: FormData): Promise<void> {
+  const bookingId = String(datos.get("booking_id") ?? "");
+  const parsed = validarO(`/admin/reservas/${bookingId}`,
+    z
+      .object({
+        method: z.enum(["YAPE", "PLIN", "BANK_TRANSFER", "CASH", "OTHER"]),
+        amount_cents: z.coerce.number().int().positive("El monto debe ser mayor a 0"),
+        transaction_reference: z.string().trim().max(60).optional(),
+        paid_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de pago inválida"),
+        notes: z.string().max(200).optional(),
+      })
+      .safeParse({
+        method: datos.get("method"),
+        amount_cents: Math.round(Number(datos.get("monto") ?? 0) * 100),
+        transaction_reference: datos.get("referencia"),
+        paid_at: datos.get("paid_at"),
+        notes: datos.get("notes"),
+      }),
+  );
+
+  const resultado = await registrarAdelantoManual({
+    bookingId,
+    method: parsed.method as MetodoAdelanto,
+    amountCents: parsed.amount_cents as number,
+    transactionReference: (parsed.transaction_reference as string) ?? "",
+    paidAt: `${parsed.paid_at as string}T12:00:00-05:00`,
+    notes: (parsed.notes as string) ?? "",
   });
 
-  if (!parsed.success) {
-    redirect("/admin/reservas?error=datos_invalidos");
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId}?error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) redirect("/admin/login");
+  revalidatePath(`/admin/reservas/${bookingId}`);
+  redirect(`/admin/reservas/${bookingId}`);
+}
 
-  const service = createSupabaseServiceClient();
+export async function verificarAdelantoManual(datos: FormData): Promise<void> {
+  const bookingId = String(datos.get("booking_id") ?? "");
+  const paymentId = uuidSchema.safeParse(datos.get("payment_id"));
 
-  const { data: reserva } = await service
-    .from("bookings")
-    .select("id, status")
-    .eq("id", parsed.data.booking_id)
-    .maybeSingle();
-
-  if (!reserva) {
-    redirect("/admin/reservas?error=no_encontrada");
+  if (!paymentId.success) {
+    redirect(`/admin/reservas/${bookingId}?error=datos_invalidos`);
   }
 
-  const permitidas = TRANSICIONES_ADMIN[reserva.status] ?? [];
-  if (!permitidas.some((t) => t.a === parsed.data.nuevo_estado)) {
+  const resultado = await verificarAdelanto(paymentId.data);
+
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId}?error=${encodeURIComponent(resultado.error ?? "error")}`);
+  }
+
+  revalidatePath(`/admin/reservas/${bookingId}`);
+  redirect(`/admin/reservas/${bookingId}`);
+}
+
+export async function rechazarAdelantoManual(datos: FormData): Promise<void> {
+  const bookingId = String(datos.get("booking_id") ?? "");
+  const paymentId = uuidSchema.safeParse(datos.get("payment_id"));
+  const motivo = String(datos.get("motivo") ?? "");
+
+  if (!paymentId.success) {
+    redirect(`/admin/reservas/${bookingId}?error=datos_invalidos`);
+  }
+
+  const resultado = await rechazarAdelanto(paymentId.data, motivo);
+
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId}?error=${encodeURIComponent(resultado.error ?? "error")}`);
+  }
+
+  revalidatePath(`/admin/reservas/${bookingId}`);
+  redirect(`/admin/reservas/${bookingId}`);
+}
+
+export async function aprobarConfirmacion(datos: FormData): Promise<void> {
+  const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
+  if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
+
+  const motivo = String(datos.get("motivo") ?? "");
+  const resultado = await confirmarReservaAdmin(bookingId.data, motivo);
+
+  if (!resultado.ok) {
     redirect(
-      `/admin/reservas/${reserva.id}?error=transicion_invalida`,
+      `/admin/reservas/${bookingId.data}?error=${encodeURIComponent(resultado.error ?? "error")}`,
     );
   }
 
-  const { error } = await service
-    .from("bookings")
-    .update({ status: parsed.data.nuevo_estado })
-    .eq("id", reserva.id);
-
-  if (error) {
-    redirect(`/admin/reservas/${reserva.id}?error=transicion_rechazada`);
-  }
-
-  await registrarAuditoria({
-    actorUserId: auth.user.id,
-    actorRole: "owner",
-    action: `reserva.${parsed.data.nuevo_estado.toLowerCase()}`,
-    entity: "bookings",
-    entityId: reserva.id,
-    before: { status: reserva.status },
-    after: { status: parsed.data.nuevo_estado },
-  });
-
-  revalidatePath(`/admin/reservas/${reserva.id}`);
-  revalidatePath("/admin/reservas");
-  redirect(`/admin/reservas/${reserva.id}`);
+  revalidatePath(`/admin/reservas/${bookingId.data}`);
+  redirect(`/admin/reservas/${bookingId.data}?confirmada=1`);
 }
 
-const pagoManualSchema = z.object({
-  booking_id: z.uuid(),
-  monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
-  metodo: z.enum(["efectivo", "yape", "plin", "transferencia"]),
-  nota: z.string().max(200).optional(),
-});
+export async function extenderRetencionManual(datos: FormData): Promise<void> {
+  const bookingId = String(datos.get("booking_id") ?? "");
+  const parsed = validarO(`/admin/reservas/${bookingId}`,
+    z
+      .object({
+        minutos: z.coerce.number().int().positive("Minutos inválidos"),
+        motivo: z.string().max(120).optional(),
+      })
+      .safeParse({
+        minutos: datos.get("minutos"),
+        motivo: datos.get("motivo"),
+      }),
+  );
 
-export async function registrarPagoManual(datos: FormData): Promise<void> {
-  const parsed = pagoManualSchema.safeParse({
-    booking_id: datos.get("booking_id"),
-    monto: datos.get("monto"),
-    metodo: datos.get("metodo"),
-    nota: datos.get("nota"),
-  });
+  const resultado = await extenderRetencion(bookingId, parsed.minutos as number, (parsed.motivo as string) ?? "");
 
-  if (!parsed.success) {
-    redirect(
-      `/admin/reservas/${datos.get("booking_id")}?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "datos inválidos")}`,
-    );
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId}?error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) redirect("/admin/login");
-
-  const service = createSupabaseServiceClient();
-
-  const { data: reserva } = await service
-    .from("bookings")
-    .select("id, status, currency")
-    .eq("id", parsed.data.booking_id)
-    .maybeSingle();
-
-  if (!reserva) {
-    redirect("/admin/reservas?error=no_encontrada");
-  }
-
-  const referencia = `manual_${reserva.id}_${Date.now()}`;
-
-  const { data: pago, error: errorPago } = await service
-    .from("payments")
-    .insert({
-      booking_id: reserva.id,
-      provider: "manual",
-      external_reference: referencia,
-      amount: parsed.data.monto,
-      currency: reserva.currency,
-      status: "SUCCEEDED",
-      method: parsed.data.metodo,
-      occurred_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (errorPago) {
-    redirect(
-      `/admin/reservas/${reserva.id}?error=${encodeURIComponent("No se pudo registrar el pago")}`,
-    );
-  }
-
-  if (["HELD", "PENDING_PAYMENT"].includes(reserva.status)) {
-    await service
-      .from("bookings")
-      .update({ status: "CONFIRMED" })
-      .eq("id", reserva.id);
-  }
-
-  await registrarAuditoria({
-    actorUserId: auth.user.id,
-    actorRole: "owner",
-    action: "pago.manual_registrado",
-    entity: "payments",
-    entityId: pago?.id ?? null,
-    after: { booking_id: reserva.id, monto: parsed.data.monto, metodo: parsed.data.metodo },
-  });
-
-  revalidatePath(`/admin/reservas/${reserva.id}`);
-  revalidatePath("/admin/pagos");
-  redirect(`/admin/reservas/${reserva.id}`);
+  revalidatePath(`/admin/reservas/${bookingId}`);
+  redirect(`/admin/reservas/${bookingId}`);
 }
 
-const bloqueoSchema = z.object({
-  fecha_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  fecha_fin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  tipo: z.enum(["full_day", "holiday"]),
-  motivo: z.string().max(120).optional(),
-});
+export async function marcarCompletada(datos: FormData): Promise<void> {
+  const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
+  if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
 
-export async function crearBloqueoAgenda(datos: FormData): Promise<void> {
-  const parsed = bloqueoSchema.safeParse({
-    fecha_inicio: datos.get("fecha_inicio"),
-    fecha_fin: datos.get("fecha_fin"),
-    tipo: datos.get("tipo"),
-    motivo: datos.get("motivo"),
-  });
+  const resultado = await completarCita(bookingId.data);
 
-  if (!parsed.success) {
-    redirect("/admin/horarios?error=datos_invalidos");
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId.data}?error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) redirect("/admin/login");
+  revalidatePath(`/admin/reservas/${bookingId.data}`);
+  redirect(`/admin/reservas/${bookingId.data}`);
+}
 
-  const service = createSupabaseServiceClient();
+export async function marcarNoShow(datos: FormData): Promise<void> {
+  const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
+  if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
 
-  const { error } = await service.from("schedule_exceptions").insert({
-    kind: parsed.data.tipo,
-    date_from: parsed.data.fecha_inicio,
-    date_to: parsed.data.fecha_fin,
-    reason: parsed.data.motivo ?? "",
-    created_by: auth.user.id,
-  });
+  const resultado = await registrarNoShow(bookingId.data);
 
-  if (error) {
-    redirect("/admin/horarios?error=insertar");
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId.data}?error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
-  await registrarAuditoria({
-    actorUserId: auth.user.id,
-    actorRole: "owner",
-    action: "agenda.bloqueo_creado",
-    entity: "schedule_exceptions",
-    entityId: null,
-    after: parsed.data,
-  });
-
-  revalidatePath("/admin/horarios");
-  redirect("/admin/horarios");
+  revalidatePath(`/admin/reservas/${bookingId.data}`);
+  redirect(`/admin/reservas/${bookingId.data}`);
 }
 
-export async function eliminarBloqueoAgenda(datos: FormData): Promise<void> {
-  const id = z.uuid().safeParse(datos.get("excepcion_id"));
-  if (!id.success) redirect("/admin/horarios?error=datos_invalidos");
+export async function cancelarAdmin(datos: FormData): Promise<void> {
+  const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
+  if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
 
-  const supabase = await createSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) redirect("/admin/login");
+  const motivo = String(datos.get("motivo") ?? "");
+  const resultado = await cancelarComoAdmin(bookingId.data, motivo);
 
-  const service = createSupabaseServiceClient();
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId.data}?error=${encodeURIComponent(resultado.error ?? "error")}`);
+  }
 
-  await service.from("schedule_exceptions").delete().eq("id", id.data);
-
-  await registrarAuditoria({
-    actorUserId: auth.user.id,
-    actorRole: "owner",
-    action: "agenda.bloqueo_eliminado",
-    entity: "schedule_exceptions",
-    entityId: id.data,
-  });
-
-  revalidatePath("/admin/horarios");
-  redirect("/admin/horarios");
+  revalidatePath(`/admin/reservas/${bookingId.data}`);
+  redirect(`/admin/reservas/${bookingId.data}`);
 }
 
+export async function reprogramarAdmin(datos: FormData): Promise<void> {
+  const bookingId = String(datos.get("booking_id") ?? "");
+  const parsed = validarO(`/admin/reservas/${bookingId}`,
+    z
+      .object({
+        fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+        hora: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
+      })
+      .safeParse({
+        fecha: datos.get("fecha_nueva"),
+        hora: datos.get("hora_nueva"),
+      }),
+  );
+
+  const nuevoInicio = `${parsed.fecha as string}T${parsed.hora as string}:00-05:00`;
+  const resultado = await reprogramarReserva(bookingId, nuevoInicio);
+
+  if (!resultado.ok) {
+    redirect(`/admin/reservas/${bookingId}?error=${encodeURIComponent(resultado.error ?? "error")}`);
+  }
+
+  revalidatePath(`/admin/reservas/${bookingId}`);
+  redirect(`/admin/reservas/${bookingId}`);
+}

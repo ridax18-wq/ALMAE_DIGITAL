@@ -32,7 +32,7 @@ export default async function ReservarPage() {
   const { data: servicios } = await supabase
     .from("services")
     .select(
-      "id, slug, name, variants:service_variants(id, duration_minutes, price)",
+      "id, slug, name, variants:service_variants(id, duration_minutes, amount_cents)",
     )
     .eq("active", true)
     .eq("location", "consultorio")
@@ -48,7 +48,7 @@ export default async function ReservarPage() {
         .map((v) => ({
           id: String(v.id),
           duracionMin: v.duration_minutes,
-          precio: v.price,
+          precio: Math.round(v.amount_cents / 100),
         })),
     }))
     .filter((servicio) => servicio.variants.length > 0);

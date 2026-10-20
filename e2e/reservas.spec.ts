@@ -32,7 +32,7 @@ test.describe("FASE 3 — motor de reservas", () => {
 
     await page.waitForURL(/\/reserva\/[0-9a-f]{64}$/);
     await expect(
-      page.locator("main").getByText("Horario reservado — pago pendiente"),
+      page.locator("main").getByText("Horario separado — coordinando adelanto"),
     ).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Terapia física");
 
