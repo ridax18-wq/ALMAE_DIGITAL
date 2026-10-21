@@ -9,7 +9,26 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function AdminLoginPage() {
+const MENSAJES: Record<string, { texto: string; clases: string }> = {
+  expirada: {
+    texto: "Tu sesión expiró. Vuelve a iniciar sesión.",
+    clases: "border-amber-200 bg-amber-50 text-amber-900",
+  },
+  actualizada: {
+    texto: "Contraseña actualizada correctamente. Inicia sesión con tu nueva contraseña.",
+    clases: "border-green-200 bg-green-50 text-green-900",
+  },
+};
+
+export default async function AdminLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sesion?: string; actualizada?: string }>;
+}) {
+  const { sesion, actualizada } = await searchParams;
+  const mensaje =
+    (sesion && MENSAJES.expirada) ?? (actualizada ? MENSAJES.actualizada : null);
+
   if (!isSupabaseConfigured()) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-sand-50 px-4 py-16">
@@ -53,6 +72,14 @@ export default function AdminLoginPage() {
         <p className="mt-2 mb-6 text-center text-sm text-ink-500">
           Acceso exclusivo para el administrador
         </p>
+        {mensaje ? (
+          <p
+            role="status"
+            className={`mb-5 rounded-xl border px-4 py-3 text-sm font-semibold ${mensaje.clases}`}
+          >
+            {mensaje.texto}
+          </p>
+        ) : null}
         <LoginForm />
         {process.env.NODE_ENV !== "production" ? (
           <p className="mt-6 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900">
