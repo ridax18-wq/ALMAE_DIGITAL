@@ -324,3 +324,36 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 2. Política de adelanto definitiva (hoy 40% provisional, editable en BD).
 3. Duraciones reales de terapia física; precios de acupuntura/entrenamiento.
 4. Bandeja de conciliación en admin (Fase 6).
+
+---
+
+## Hito 2.2 — modelo definitivo de retención, agenda unificada y confirmación manual (2026-10-21)
+
+### Implementación
+- **Migraciones 0008–0013** aplicadas en local: roles admin, orígenes WEB/IN_PERSON/ADMIN, dinero en céntimos, código público `ALM-`, token por hash SHA-256, `schedule_blocks`, `manual_payments`, `agenda_occupancy` (agenda unificada con EXCLUSION GiST + triggers de sincronización), vista `bookings_resumen_economico`, RPCs definitivas (`crear_retencion_web`, `obtener_reserva_por_token`, `cancelar_reserva_por_token`, `expirar_retenciones`, `confirmar_reserva_admin`, `extender_retencion`, `crear_reserva_presencial`, `crear_bloqueo_agenda`, `liberar_bloqueo_agenda`, `hay_conflicto_agenda`), horarios ISO 1–7 y depósito por defecto (40% provisional editable).
+- Retiro del flujo de pago simulado: `/pagos/*`, webhooks mock y orquestador eliminados; el paciente coordina el adelanto por WhatsApp y el admin registra/verifica/confirm manualmente (se conserva `payments/gateway.ts` para Culqi futuro).
+- Motor de disponibilidad reescrito multi-franja (ventanas con descansos por franja, bloques de agenda como ocupación, excepciones, expiración lazy).
+- Página `/reserva/[token]` nueva: código público, contador de retención, WhatsApp "Coordinar adelanto", cancelación según política.
+- Panel: confirmar cita (valida retención + adelanto verificado), extender retención (cap 30 min), registrar/verificar/rechazar adelantos manuales, reprogramar con chequeo de conflicto, reserva presencial, bandeja de pagos.
+
+### Correcciones durante el hito
+- Columna generada `profesional_clave` (la hilera NULL de professional_id esquivaba la exclusión GiST) → anti-solape real en BD.
+- Migración 0013: `access_token`/hash nullable (presenciales no generan token).
+- PostgREST: filtros de delete con valores de enum válidos (el uso de valores inexistentes hacía que nunca se borrara); arrays vacíos interpretados como duplicados; fechas relativas dinámicas en pruebas (la fecha fija dejó de ser futura).
+
+### Pruebas ejecutadas
+- `tests/hito22.test.ts`: **13/13** — T01–T23 (concurrencia 1 gana, doble reserva, RLS anon, referencias duplicadas, bloqueos, snapshot histórico) → total Vitest **24/24**.
+- Playwright E2E: **16/16** (×2 corridas seguidas): portal, wizard→token, cancelación por token, admin (login/logout, credenciales inválidas), panel (recorrido de secciones, **adelanto verificado → confirmar cita → estado público CONFIRMED**, creación de servicio con slug/nombre únicos).
+- `scripts/probar-motor.mjs` reescrito a las RPCs nuevas: concurrencia 1/5, token válido/inválido, expiración → MOTOR_OK.
+- lint / typecheck / build ✓.
+
+### Commits
+- `0abc106` hito-2.2a (modelo + RPCs + retiro de pago simulado)
+- `358caec` hito-2.2b (depósito por defecto, casos SQL, integridad)
+- `2de0f66` hito-2.3 (panel en español es-PE + recuperación de contraseña)
+- `0b984bd` fix(admin,public): columnas renombradas + catálogo en céntimos
+- `5122af4` test(e2e): suite al modelo de retención
+
+## Hito 2.3 — español (es-PE) y recuperación de contraseña
+
+- `src/lib/locale.ts` centraliza locale/tiempo; fechas DD/MM/AAAA; `errores-auth.ts` traduce errores de Supabase; login/recuperación/cambio de contraseña completos; nav "Dashboard" → "Panel de control"; pendiente configurar plantillas de correo en Dashboard (docs/supabase-setup.md).

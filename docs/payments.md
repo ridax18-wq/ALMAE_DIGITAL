@@ -2,6 +2,12 @@
 
 > Diseño orientado a: **nunca confirmar una cita sin pago acreditado y validado server-side.**
 
+## 0. Estado vigente (Hito 2.2)
+
+- **No hay pago en la web.** El paciente coordina el adelanto por WhatsApp y el administrador lo registra y verifica manualmente en el panel (ver `docs/manual-payments.md`).
+- El checkout simulado y los webhooks del mock fueron **retirados** del sitio; se conserva la interfaz `src/lib/payments/gateway.ts` para integrar Culqi al final del proyecto (Fase 5).
+- Las secciones siguientes describen el diseño original con pasarela; se mantienen como referencia para la futura integración.
+
 ## 1. Principios
 
 1. El importe del adelanto se **calcula y valida en el servidor**; el navegador no envía montos.
