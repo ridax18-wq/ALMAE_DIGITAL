@@ -305,6 +305,12 @@ begin
   v_exencion := coalesce((p_entrada->>'exencion_adelanto')::boolean, false);
   v_deposito := case when v_exencion then 0 else v_variant.deposit_cents end;
 
+  v_public_code := 'ALM-' || upper(translate(
+    encode(extensions.gen_random_bytes(6), 'hex'),
+    '0134567890abcdef',
+    'ABCDEFGHJKLMNPQRSTUV'
+  ));
+
   insert into bookings (
     service_id, service_variant_id, patient_id, professional_id,
     starts_at, ends_at, status, origin,
@@ -316,7 +322,7 @@ begin
   ) values (
     v_service.id, v_variant.id, v_patient_id, null,
     (p_entrada->>'starts_at')::timestamptz, v_fin, 'CONFIRMED', 'IN_PERSON',
-    null, null, null, now() + interval '7 days',
+    v_public_code, null, null, now() + interval '7 days',
     v_variant.amount_cents, v_deposito, 0, v_settings.currency,
     p_entrada->>'utm_source', p_entrada->>'utm_medium', p_entrada->>'utm_campaign',
     coalesce(p_entrada->>'notes', '') || case when v_exencion
@@ -327,22 +333,12 @@ begin
   )
   returning id into v_booking_id;
 
-  update bookings
-  set public_code = 'ALM-' || upper(translate(
-        encode(extensions.gen_random_bytes(6), 'hex'),
-        '0134567890abcdef',
-        'ABCDEFGHJKLMNPQRSTUV'
-      ))
-  where id = v_booking_id;
-
   insert into booking_events (booking_id, to_status, actor, reason)
   values (v_booking_id, 'CONFIRMED', 'admin', 'reserva presencial');
 
   insert into audit_logs (actor_user_id, actor_role, action, entity, entity_id, after)
   values (auth.uid(), 'owner', 'reserva.presencial', 'bookings', v_booking_id,
           jsonb_build_object('exencion_adelanto', v_exencion));
-
-  select public_code into v_public_code from bookings where id = v_booking_id;
 
   return jsonb_build_object(
     'ok', true,

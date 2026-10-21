@@ -92,6 +92,7 @@ declare
   v_hold_min int;
   v_excepcion_block int;
   v_expires timestamptz;
+  v_break record;
   v_now timestamptz := now();
 begin
   select * into v_settings from business_settings limit 1;
@@ -144,6 +145,18 @@ begin
   v_cierre := (v_dia + v_horario.closes_at) at time zone 'America/Lima';
 
   if p_starts_at < v_apertura or v_fin > v_cierre then
+    return jsonb_build_object('ok', false, 'error', 'fuera_de_horario');
+  end if;
+
+  select break_start, break_end into v_break
+  from business_hours
+  where day_of_week = v_dow_iso
+    and break_start is not null and break_end is not null
+    and tstzrange(p_starts_at, v_fin) && tstzrange(
+          (v_dia + break_start) at time zone 'America/Lima',
+          (v_dia + break_end) at time zone 'America/Lima')
+  limit 1;
+  if found then
     return jsonb_build_object('ok', false, 'error', 'fuera_de_horario');
   end if;
 

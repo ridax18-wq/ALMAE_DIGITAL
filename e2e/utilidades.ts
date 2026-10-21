@@ -36,6 +36,10 @@ export async function limpiarAgendaLocal(): Promise<void> {
     .from("bookings")
     .delete()
     .in("status", ["HELD", "PENDING_PAYMENT", "CONFIRMED", "EXPIRED"]);
+  await supabase
+    .from("schedule_blocks")
+    .delete()
+    .in("block_type", ["BREAK", "INTERNAL", "ABSENCE", "MAINTENANCE", "OTHER"]);
   await supabase.from("patients").delete().neq("phone", "INEXISTENTE");
 }
 
