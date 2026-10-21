@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatPen } from "@/lib/format";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: "Panel de control",
   robots: { index: false, follow: false },
 };
 
@@ -108,7 +108,7 @@ export default async function DashboardPage() {
   return (
     <main className="py-8">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="font-display text-2xl font-bold text-ink-900">Dashboard</h1>
+        <h1 className="font-display text-2xl font-bold text-ink-900">Panel de control</h1>
         <p className="mt-1 text-sm text-ink-500">
           Indicadores de registros reales · {hoy} (America/Lima)
         </p>

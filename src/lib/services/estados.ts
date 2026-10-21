@@ -37,33 +37,25 @@ export const ETIQUETAS_ESTADO: Record<string, { texto: string; clases: string }>
   },
 };
 
-/** Transiciones permitidas al administrador, por estado actual. */
+/** Transiciones permitidas al administrador, por estado actual (espejo de bookings_valid_transitions). */
 export const TRANSICIONES_ADMIN: Record<string, { a: string; texto: string; tono: "primary" | "secondary" | "danger" }[]> = {
   HELD: [
-    { a: "CONFIRMED", texto: "Confirmar (pago acreditado)", tono: "primary" },
+    { a: "CONFIRMED", texto: "Confirmar (adelanto verificado)", tono: "primary" },
     { a: "CANCELLED", texto: "Cancelar", tono: "danger" },
-  ],
-  PENDING_PAYMENT: [
-    { a: "CONFIRMED", texto: "Confirmar (pago acreditado)", tono: "primary" },
-    { a: "CANCELLED", texto: "Cancelar", tono: "danger" },
+    { a: "EXPIRED", texto: "Expirar", tono: "secondary" },
   ],
   CONFIRMED: [
     { a: "COMPLETED", texto: "Marcar completada", tono: "primary" },
     { a: "NO_SHOW", texto: "Registrar inasistencia", tono: "danger" },
     { a: "CANCELLED", texto: "Cancelar", tono: "danger" },
-    { a: "REFUND_PENDING", texto: "Iniciar reembolso", tono: "secondary" },
   ],
-  REFUND_PENDING: [{ a: "REFUNDED", texto: "Marcar reembolsada", tono: "primary" }],
 };
 
 export const ESTADOS_FILTRO = [
   "HELD",
-  "PENDING_PAYMENT",
   "CONFIRMED",
   "COMPLETED",
   "CANCELLED",
   "EXPIRED",
   "NO_SHOW",
-  "REFUND_PENDING",
-  "REFUNDED",
 ] as const;

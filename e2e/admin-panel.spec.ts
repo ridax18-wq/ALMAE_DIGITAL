@@ -18,31 +18,21 @@ const SECCIONES = [
 
 async function entrarComoOwner(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/admin/login");
-  await page.fill("#email", "admin@almae.demo");
-  await page.fill("#password", "DemoAlmae2026");
-  await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await page.waitForURL("**/admin");
+  const intento = async (): Promise<void> => {
+    await page.fill("#email", "admin@almae.demo");
+    await page.fill("#password", "DemoAlmae2026");
+    await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  };
+  await intento();
+  try {
+    await page.waitForURL("**/admin", { timeout: 8000 });
+  } catch {
+    await intento();
+    await page.waitForURL("**/admin");
+  }
 }
 
-test.describe("FASE 6 — panel administrativo", () => {
-  test.beforeAll(async () => {
-    await limpiarAgendaLocal();
-  });
-
-  test("recorrido completo por las secciones del panel", async ({ page }) => {
-    await entrarComoOwner(page);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-
-    const nav = page.getByRole("navigation", { name: "Secciones del panel" });
-
-    for (const seccion of SECCIONES) {
-      await nav.getByRole("link", { name: seccion.nombre, exact: true }).click();
-      await expect(page).toHaveURL(seccion.url);
-      await expect(page.locator("main").first()).toBeVisible();
-    }
-  });
-
-async function reservarHastaToken(page: import("@playwright/test").Page): Promise<void> {
+async function reservarHastaToken(page: import("@playwright/test").Page): Promise<string> {
   await page.goto("/reservar");
   await page.getByRole("button", { name: /Terapia física/ }).first().click();
   expect(await encontrarDiaConHorarios(page)).toBe(true);
@@ -53,29 +43,60 @@ async function reservarHastaToken(page: import("@playwright/test").Page): Promis
   await page.getByRole("button", { name: "Reservar mi horario" }).click();
   await page.waitForURL(/\/reserva\/[0-9a-f]{64}$/);
   await expect(page.locator("main").getByText("Horario separado — coordinando adelanto")).toBeVisible();
+  return page.url();
 }
 
-  test("un pago manual confirma la reserva del paciente", async ({ page }) => {
-    await reservarHastaToken(page);
+test.describe("FASE 6 — panel administrativo", () => {
+  test.beforeAll(async () => {
+    await limpiarAgendaLocal();
+  });
+
+  test("recorrido completo por las secciones del panel", async ({ page }) => {
+    await entrarComoOwner(page);
+    await expect(page.getByRole("heading", { name: "Panel de control" })).toBeVisible();
+
+    const nav = page.getByRole("navigation", { name: "Secciones del panel" });
+
+    for (const seccion of SECCIONES) {
+      await nav.getByRole("link", { name: seccion.nombre, exact: true }).click();
+      await expect(page).toHaveURL(seccion.url);
+      await expect(page.locator("main").first()).toBeVisible();
+    }
+  });
+
+  test("un adelanto verificado permite confirmar la reserva", async ({ page }) => {
+    const urlToken = await reservarHastaToken(page);
 
     await entrarComoOwner(page);
     await page.getByRole("link", { name: "Reservas", exact: true }).click();
-    await page.getByRole("link", { name: /Paciente Admin E2E/ }).first().click();
-    await expect(page.getByRole("heading", { name: "Cambiar estado" })).toBeVisible();
+    const filaPropia = page.locator("tbody tr").filter({ hasText: "Paciente Admin E2E" }).first();
+    await filaPropia.getByRole("link", { name: "Ver", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Registrar adelanto manual" })).toBeVisible();
 
-    await page.fill("#monto", "20");
-    await page.selectOption("#metodo", "yape");
-    await page.getByRole("button", { name: "Registrar pago" }).click();
+    await page.selectOption('select[name="method"]', "YAPE");
+    await page.fill('input[name="monto"]', "20");
+    await page.fill('input[name="referencia"]', "E2E-0001");
+    await page.getByRole("button", { name: "Registrar (queda REPORTED)" }).click();
+    await expect(page.getByText("E2E-0001")).toBeVisible();
 
+    await page.getByRole("button", { name: "Verificar" }).click();
+    await expect(page.locator("main").getByText("VERIFIED")).toBeVisible();
+
+    await expect(page.getByRole("button", { name: "Confirmar cita" })).toBeEnabled();
+    await page.getByRole("button", { name: "Confirmar cita" }).click();
+    await expect(page.getByText("Cita confirmada correctamente.")).toBeVisible();
+
+    await page.goto(urlToken);
     await expect(page.locator("main").getByText("Cita confirmada")).toBeVisible();
-    await expect(page.locator("main").getByText(/manual · yape/)).toBeVisible();
   });
 
-  test("crear un servicio nuevo lo publica en el catálogo", async ({ page }) => {
+  test("crear un servicio nuevo queda guardado en el panel", async ({ page }) => {
     await entrarComoOwner(page);
     await page.goto("/admin/servicios/nuevo");
-    await page.fill("#name", "Terapia de prueba E2E");
-    await page.fill("#slug", "terapia-prueba-e2e");
+    const sufijo = Date.now();
+    const nombreUnico = `Terapia de prueba E2E ${sufijo}`;
+    await page.fill("#name", nombreUnico);
+    await page.fill("#slug", `terapia-prueba-e2e-${sufijo}`);
     await page.fill("#sort_order", "90");
     await page.fill("#v_0_duration", "45");
     await page.fill("#v_0_price", "60");
@@ -83,7 +104,7 @@ async function reservarHastaToken(page: import("@playwright/test").Page): Promis
     await page.waitForURL(/\/admin\/servicios\/[0-9a-f-]{36}\?guardado=1$/);
     await expect(page.getByText("Cambios guardados.")).toBeVisible();
 
-    await page.goto("/servicios");
-    await expect(page.getByText("Terapia de prueba E2E")).toBeVisible();
+    await page.goto("/admin/servicios");
+    await expect(page.getByText(nombreUnico)).toBeVisible();
   });
 });

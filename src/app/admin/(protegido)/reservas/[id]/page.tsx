@@ -51,7 +51,7 @@ export default async function ReservaDetallePage({
     await Promise.all([
       supabase.from("patients").select("id, full_name, phone, email").eq("id", reserva.patient_id).maybeSingle(),
       supabase.from("services").select("id, name, slug").eq("id", reserva.service_id).maybeSingle(),
-      supabase.from("service_variants").select("id, duration_minutes, price").eq("id", reserva.service_variant_id).maybeSingle(),
+      supabase.from("service_variants").select("id, duration_minutes").eq("id", reserva.service_variant_id).maybeSingle(),
     ]);
 
   const { data: eventosReserva } = await supabase

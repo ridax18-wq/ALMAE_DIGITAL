@@ -32,14 +32,8 @@ export async function limpiarAgendaLocal(): Promise<void> {
     throw new Error("La limpieza de pruebas solo corre contra el stack local");
   }
 
-  await supabase
-    .from("bookings")
-    .delete()
-    .in("status", ["HELD", "PENDING_PAYMENT", "CONFIRMED", "EXPIRED"]);
-  await supabase
-    .from("schedule_blocks")
-    .delete()
-    .in("block_type", ["BREAK", "INTERNAL", "ABSENCE", "MAINTENANCE", "OTHER"]);
+  await supabase.from("bookings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await supabase.from("schedule_blocks").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   await supabase.from("patients").delete().neq("phone", "INEXISTENTE");
 }
 

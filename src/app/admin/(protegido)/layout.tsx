@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 const NAVEGACION = [
-  { href: "/admin", label: "Dashboard" },
+  { href: "/admin", label: "Panel de control" },
   { href: "/admin/agenda", label: "Agenda" },
   { href: "/admin/reservas", label: "Reservas" },
   { href: "/admin/pacientes", label: "Pacientes" },
