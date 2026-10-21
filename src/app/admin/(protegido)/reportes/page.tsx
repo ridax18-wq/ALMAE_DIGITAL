@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 type FilaReserva = {
   id: string;
   status: string;
-  total_amount: number;
+  amount_cents: number;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -28,13 +28,13 @@ export default async function ReportesPage() {
       supabase
         .from("bookings")
         .select(
-          "id, status, total_amount, utm_source, utm_medium, utm_campaign, marketing_source_id, created_at",
+          "id, status, amount_cents, utm_source, utm_medium, utm_campaign, marketing_source_id, created_at",
         )
         .order("created_at", { ascending: false }),
       supabase.from("marketing_sources").select("id, name, kind"),
       supabase
-        .from("payments")
-        .select("amount, status, occurred_at, booking_id"),
+        .from("manual_payments")
+        .select("amount_cents, verification_status, booking_id"),
     ]);
 
   const nombreFuente = new Map<string, string>();
@@ -42,10 +42,10 @@ export default async function ReportesPage() {
 
   const pagosPorReserva = new Map<string, number>();
   for (const p of pagos ?? []) {
-    if (p.status === "SUCCEEDED" && p.booking_id) {
+    if (p.verification_status === "VERIFIED" && p.booking_id) {
       pagosPorReserva.set(
         String(p.booking_id),
-        (pagosPorReserva.get(String(p.booking_id)) ?? 0) + Number(p.amount),
+        (pagosPorReserva.get(String(p.booking_id)) ?? 0) + Number(p.amount_cents),
       );
     }
   }

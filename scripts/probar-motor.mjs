@@ -2,22 +2,39 @@ import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const supabase = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+const anon = createClient(url, anonKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+const SERVICIO = "terapia-fisica-y-rehabilitacion-consultorio";
+
+const previos = await supabase
+  .from("patients")
+  .select("id")
+  .eq("phone", "900000001");
+const idsPrevios = (previos.data ?? []).map((p) => p.id);
+if (idsPrevios.length) {
+  await supabase.from("bookings").delete().in("patient_id", idsPrevios);
+  await supabase.from("patients").delete().in("id", idsPrevios);
+}
+
 const { data: variant, error: errorVariante } = await supabase
   .from("service_variants")
   .select("id, service:services!inner(slug)")
-  .eq("service.slug", "terapia-fisica-y-rehabilitacion-consultorio")
+  .eq("service.slug", SERVICIO)
   .limit(1)
   .maybeSingle();
 
 if (!variant) throw new Error("Variante no encontrada: " + errorVariante?.message);
 
 const dias = [];
-for (let i = 0; i < 7; i += 1) {
+for (let i = 1; i < 10; i += 1) {
   const f = new Date();
   f.setDate(f.getDate() + i);
   const dow = f.getDay();
@@ -30,11 +47,11 @@ for (let i = 0; i < 7; i += 1) {
 const fecha = dias[0];
 if (!fecha) throw new Error("No hay día hábil disponible");
 
-async function crearHold(slotHora) {
-  const { data, error } = await supabase.rpc("crear_reserva_con_hold", {
-    p_service_slug: "terapia-fisica-y-rehabilitacion-consultorio",
+async function retener(hora) {
+  return await anon.rpc("crear_retencion_web", {
+    p_service_slug: SERVICIO,
     p_variant_id: variant.id,
-    p_starts_at: `${fecha}T${slotHora}:00-05:00`,
+    p_starts_at: `${fecha}T${hora}:00-05:00`,
     p_patient: {
       full_name: "Paciente Motor Test",
       phone: "900000001",
@@ -43,13 +60,12 @@ async function crearHold(slotHora) {
       consent: false,
     },
   });
-  return { data, error };
 }
 
 let exitos = 0;
 let fallas = 0;
 const resultados = await Promise.all(
-  ["09:00", "09:00", "09:00", "09:00", "09:00"].map(() => crearHold("09:00")),
+  Array.from({ length: 5 }, () => retener("09:00")),
 );
 for (const r of resultados) {
   if (r.data?.ok) exitos += 1;
@@ -61,8 +77,11 @@ if (exitos !== 1 || fallas !== 4) {
   process.exit(1);
 }
 
-const { data: vista } = await supabase.rpc("obtener_reserva_por_token", {
-  p_token: resultados[0].data.token,
+const exitosa = resultados.find((r) => r.data?.ok === true);
+if (!exitosa) throw new Error("Ninguna retención creada");
+
+const { data: vista } = await anon.rpc("obtener_reserva_por_token", {
+  p_token: exitosa.data.token,
 });
 console.log(
   "TOKEN_VALIDO:",
@@ -70,30 +89,29 @@ console.log(
   vista?.status ?? "sin vista",
 );
 
-const { data: invalida } = await supabase.rpc("obtener_reserva_por_token", {
-  p_token: "f".repeat(64),
+const tokenInvalido = "f".repeat(64);
+const { data: invalida } = await anon.rpc("obtener_reserva_por_token", {
+  p_token: tokenInvalido,
 });
 console.log("TOKEN_INVALIDO:", invalida === null || Object.keys(invalida ?? {}).length === 0 ? "ok (no encontrada)" : "fallo");
 
-const idReserva = resultados[0].data.id;
+const idReserva = exitosa.data.id;
 
-await supabase
-  .from("bookings")
-  .update({
-    starts_at: `${fecha}T10:00:00-05:00`,
-    ends_at: `${fecha}T11:00:00-05:00`,
-    expires_at: new Date(Date.now() - 60_000).toISOString(),
-  })
-  .eq("id", idReserva);
+const { error: errorExpirar } = await supabase.from("bookings").update({
+  hold_expires_at: new Date(Date.now() - 60_000).toISOString(),
+}).eq("id", idReserva);
+if (errorExpirar) throw new Error(errorExpirar.message);
 
-const { data: expiradas } = await supabase.rpc("expirar_holds");
+const { data: expiradas } = await supabase.rpc("expirar_retenciones");
 console.log("EXPIRACION: registros marcados =", Number(expiradas ?? 0) > 0 ? "ok" : "fallo");
 
-const { data: slotLiberado } = await supabase
+const { data: final } = await supabase
   .from("bookings")
   .select("id, status")
   .eq("id", idReserva)
   .maybeSingle();
-console.log("ESTADO_FINAL:", slotLiberado?.status === "EXPIRED" ? "ok" : "fallo", slotLiberado?.status ?? "");
+console.log("ESTADO_FINAL:", final?.status === "EXPIRED" ? "ok" : "fallo", final?.status ?? "");
+
+await supabase.from("patients").delete().eq("phone", "900000001");
 
 console.log("\nMOTOR_OK");

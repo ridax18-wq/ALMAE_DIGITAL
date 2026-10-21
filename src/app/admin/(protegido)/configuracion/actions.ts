@@ -15,6 +15,7 @@ const configSchema = z.object({
   max_advance_days: z.coerce.number().int().min(1).max(365),
   cancellation_policy_hours: z.coerce.number().int().min(1).max(168),
   advance_percent: z.coerce.number().int().min(0).max(100),
+  max_hold_extension_minutes: z.coerce.number().int().min(0).max(120),
   whatsapp_number: z.string().trim().regex(/^\d{8,15}$/, "Formato internacional sin + (ej: 51919608174)"),
   address_public: z.string().max(160),
 });
@@ -28,6 +29,7 @@ export async function guardarConfiguracion(datos: FormData): Promise<void> {
     max_advance_days: datos.get("max_advance_days"),
     cancellation_policy_hours: datos.get("cancellation_policy_hours"),
     advance_percent: datos.get("advance_percent"),
+    max_hold_extension_minutes: datos.get("max_hold_extension_minutes"),
     whatsapp_number: datos.get("whatsapp_number"),
     address_public: datos.get("address_public"),
   });
@@ -53,6 +55,7 @@ export async function guardarConfiguracion(datos: FormData): Promise<void> {
       max_advance_days: parsed.data.max_advance_days,
       cancellation_policy_hours: parsed.data.cancellation_policy_hours,
       advance_percent: parsed.data.advance_percent,
+      max_hold_extension_minutes: parsed.data.max_hold_extension_minutes,
       whatsapp_number: parsed.data.whatsapp_number,
       address_public: parsed.data.address_public,
     })

@@ -15,8 +15,8 @@ type FilaReserva = {
   id: string;
   status: string;
   starts_at: string;
-  total_amount: number;
-  advance_amount: number;
+  amount_cents: number;
+  deposit_required_cents: number;
   patient_id: string;
   service_id: string;
 };
@@ -31,7 +31,7 @@ export default async function ReservasPage({
 
   let consulta = supabase
     .from("bookings")
-    .select("id, status, starts_at, total_amount, advance_amount, patient_id, service_id")
+    .select("id, status, starts_at, amount_cents, deposit_required_cents, patient_id, service_id")
     .order("starts_at", { ascending: false })
     .limit(100);
 
@@ -177,8 +177,8 @@ export default async function ReservasPage({
                         {estadoInfo.texto}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5">{formatPen(reserva.advance_amount)}</td>
-                    <td className="px-4 py-2.5">{formatPen(reserva.total_amount)}</td>
+                    <td className="px-4 py-2.5">{formatPen(reserva.deposit_required_cents)}</td>
+                    <td className="px-4 py-2.5">{formatPen(reserva.amount_cents)}</td>
                     <td className="px-4 py-2.5 text-right">
                       <Link
                         href={`/admin/reservas/${reserva.id}`}

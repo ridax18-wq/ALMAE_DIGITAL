@@ -81,8 +81,8 @@ export function ServiceCard({ service }: { service: Service }) {
           {service.variants.length === 0
             ? "Precio por consultar"
             : multiple
-              ? `Desde ${formatPen(first?.price ?? 0)}`
-              : formatPen(first?.price ?? 0)}
+              ? `Desde ${formatPen(first?.priceCents ?? 0)}`
+              : formatPen(first?.priceCents ?? 0)}
           <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>

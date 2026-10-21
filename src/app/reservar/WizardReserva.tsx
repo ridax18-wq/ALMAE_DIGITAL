@@ -336,8 +336,8 @@ export function WizardReserva({
           </div>
           <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-ink-500">
             <WalletIcon className="size-3.5" />
-            Tras reservar, pagarás el adelanto para confirmar (simulador en
-            desarrollo; pasarela real en Fase 5).
+            Tras reservar, tu horario queda separado 15 minutos: coordinarás el
+            adelanto por WhatsApp y ALMAE confirmará tu cita en el sistema.
           </p>
         </form>
       ) : null}

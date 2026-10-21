@@ -20,7 +20,7 @@ export default async function ConfiguracionPage({
   const { data: config } = await supabase
     .from("business_settings")
     .select(
-      "id, booking_hold_ttl_minutes, booking_gap_minutes, min_booking_lead_hours, max_advance_days, cancellation_policy_hours, advance_percent, whatsapp_number, address_public",
+      "id, booking_hold_ttl_minutes, booking_gap_minutes, min_booking_lead_hours, max_advance_days, cancellation_policy_hours, advance_percent, max_hold_extension_minutes, whatsapp_number, address_public",
     )
     .limit(1)
     .maybeSingle();
@@ -92,6 +92,12 @@ export default async function ConfiguracionPage({
                 Adelanto por defecto (%)
               </label>
               <input id="adelanto" name="advance_percent" type="number" min="0" max="100" defaultValue={config.advance_percent} className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label htmlFor="extension" className="mb-1 block text-sm font-semibold text-ink-900">
+                Extensión máxima de retención (minutos)
+              </label>
+              <input id="extension" name="max_hold_extension_minutes" type="number" min="0" max="120" defaultValue={config.max_hold_extension_minutes} className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm" />
             </div>
             <div>
               <label htmlFor="whatsapp" className="mb-1 block text-sm font-semibold text-ink-900">

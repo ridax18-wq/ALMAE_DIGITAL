@@ -26,7 +26,7 @@ export default async function EditarServicioPage({
   const { data: servicio } = await supabase
     .from("services")
     .select(
-      "id, slug, name, description, location, active, instructions, sort_order, variants:service_variants(id, duration_minutes, prep_buffer_minutes, price, advance_amount)",
+      "id, slug, name, description, location, active, instructions, sort_order, variants:service_variants(id, duration_minutes, prep_buffer_minutes, amount_cents, deposit_cents)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -70,8 +70,8 @@ export default async function EditarServicioPage({
                 id: String(v.id),
                 duracion: v.duration_minutes,
                 prep: v.prep_buffer_minutes,
-                precio: Number(v.price),
-                adelanto: v.advance_amount === null ? null : Number(v.advance_amount),
+                precio: v.amount_cents / 100,
+                adelanto: v.deposit_cents === null ? null : v.deposit_cents / 100,
                 reservable: idsOcupados.has(String(v.id)),
               })),
             }}

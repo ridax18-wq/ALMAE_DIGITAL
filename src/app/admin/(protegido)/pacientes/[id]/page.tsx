@@ -37,7 +37,7 @@ export default async function PacienteDetallePage({
 
   const { data: historial } = await supabase
     .from("bookings")
-    .select("id, status, starts_at, ends_at, total_amount, advance_amount, service_id")
+    .select("id, status, starts_at, ends_at, amount_cents, service_id")
     .eq("patient_id", id)
     .order("starts_at", { ascending: false });
 
@@ -63,7 +63,7 @@ export default async function PacienteDetallePage({
 
   const gastoTotal = (historial ?? [])
     .filter((h) => ["CONFIRMED", "COMPLETED"].includes(h.status))
-    .reduce((t, h) => t + Number(h.total_amount), 0);
+    .reduce((t, h) => t + Number(h.amount_cents), 0);
 
   return (
     <main className="py-8">

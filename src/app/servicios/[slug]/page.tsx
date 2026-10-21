@@ -139,7 +139,7 @@ export default async function ServicioDetallePage({
                         ) : null}
                       </span>
                       <span className="font-semibold text-ink-900">
-                        {formatPen(v.price)}
+                        {formatPen(v.priceCents)}
                       </span>
                     </li>
                   ))}
