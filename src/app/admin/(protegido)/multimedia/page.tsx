@@ -22,6 +22,12 @@ export default async function MultimediaPage({
   searchParams: Promise<{ error?: string; subida?: string; alt?: string; eliminada?: string }>;
 }) {
   const { error, subida, alt, eliminada } = await searchParams;
+  const mensajeError =
+    error === "imagen_duplicada"
+      ? "Esta imagen ya existe en la biblioteca (contenido idéntico)."
+      : error
+        ? decodeURIComponent(error)
+        : null;
   const supabase = createSupabaseServiceClient();
   const { data: medios } = await supabase
     .from("media_assets")
@@ -39,9 +45,9 @@ export default async function MultimediaPage({
           Biblioteca de imágenes del sitio: JPG, PNG o WebP hasta 5 MB. Solo imágenes comerciales; no subas datos clínicos ni comprobantes.
         </p>
 
-        {error ? (
+        {mensajeError ? (
           <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {decodeURIComponent(error)}
+            {mensajeError}
           </p>
         ) : null}
         {subida ? (

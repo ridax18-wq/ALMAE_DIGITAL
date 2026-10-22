@@ -47,7 +47,8 @@ export default async function ServicioDetallePage({
   const service = await obtenerServicio(slug);
   if (!service) notFound();
 
-  const image = IMG[service.slug as keyof typeof IMG];
+  const image = service.imagen ?? IMG[service.slug as keyof typeof IMG];
+  const esRemota = typeof image === "string" && image.startsWith("http");
   const esDomicilio = service.location === "domicilio";
   const whatsappUrl = buildWhatsAppUrl(
     "servicio",
@@ -67,13 +68,22 @@ export default async function ServicioDetallePage({
             <article className="rounded-2xl border border-sand-200 bg-white p-6 sm:p-8">
               <div className="relative mb-8 aspect-[16/10] overflow-hidden rounded-xl">
                 {image ? (
-                  <Image
-                    src={image}
-                    alt={`${service.name} — ALMAE Terapia y Spa`}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 66vw"
-                    className="object-cover"
-                  />
+                  esRemota ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={image}
+                      alt={`${service.name} — ALMAE Terapia y Spa`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={image}
+                      alt={`${service.name} — ALMAE Terapia y Spa`}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 66vw"
+                      className="object-cover"
+                    />
+                  )
                 ) : (
                   <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-50 via-sand-100 to-sage-100">
                     <span className="font-display text-6xl font-extrabold text-brand-300">

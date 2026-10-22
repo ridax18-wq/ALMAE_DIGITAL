@@ -26,6 +26,8 @@ const servicioSchema = z.object({
   location: z.enum(["consultorio", "domicilio"]),
   instructions: z.string().max(400).default(""),
   sort_order: z.coerce.number().int().min(0).max(99),
+  catalog_mode: z.enum(["reservable", "visible", "consulta"]).default("reservable"),
+  image_media_id: z.string().uuid().optional().or(z.literal("")),
 });
 
 const varianteSchema = z.object({
@@ -61,6 +63,8 @@ export async function guardarServicio(datos: FormData): Promise<void> {
     location: datos.get("location"),
     instructions: datos.get("instructions") ?? "",
     sort_order: datos.get("sort_order"),
+    catalog_mode: datos.get("catalog_mode") ?? "reservable",
+    image_media_id: datos.get("image_media_id") ?? "",
   });
 
   if (!servicio.success) {
@@ -97,6 +101,8 @@ export async function guardarServicio(datos: FormData): Promise<void> {
     active: datos.get("active") === "on",
     instructions: servicio.data.instructions,
     sort_order: servicio.data.sort_order,
+    catalog_mode: servicio.data.catalog_mode,
+    image_media_id: servicio.data.image_media_id || null,
   };
 
   let servicioId = servicioIdPrevio;
@@ -171,5 +177,43 @@ export async function guardarServicio(datos: FormData): Promise<void> {
   revalidatePath("/admin/servicios");
   revalidatePath("/servicios");
   redirect(`/admin/servicios/${servicioId}?guardado=1`);
+}
+
+export async function reordenarServicio(datos: FormData): Promise<void> {
+  await requerirAdmin();
+
+  const id = String(datos.get("id") ?? "");
+  const paso = Number(datos.get("paso") ?? 0);
+  if (!id || (paso !== -1 && paso !== 1)) redirect("/admin/servicios");
+
+  const service = createSupabaseServiceClient();
+  const { data: actual } = await service
+    .from("services")
+    .select("id, sort_order")
+    .eq("id", id)
+    .maybeSingle();
+  if (!actual) redirect("/admin/servicios");
+
+  const destino = Math.max(0, Math.min(99, Number(actual.sort_order) + paso));
+  if (destino === Number(actual.sort_order)) redirect("/admin/servicios");
+
+  const { data: choque } = await service
+    .from("services")
+    .select("id")
+    .eq("sort_order", destino)
+    .maybeSingle();
+
+  if (choque) {
+    await service
+      .from("services")
+      .update({ sort_order: Number(actual.sort_order) })
+      .eq("id", choque.id);
+  }
+
+  await service.from("services").update({ sort_order: destino }).eq("id", id);
+
+  revalidatePath("/admin/servicios");
+  revalidatePath("/servicios");
+  redirect("/admin/servicios");
 }
 

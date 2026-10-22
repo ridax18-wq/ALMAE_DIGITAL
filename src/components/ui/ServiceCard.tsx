@@ -16,10 +16,11 @@ const IMG = {
 } as const;
 
 export function ServiceCard({ service }: { service: ServicioPublico }) {
-  const image = IMG[service.slug as keyof typeof IMG];
+  const image = service.imagen ?? IMG[service.slug as keyof typeof IMG];
   const variantes = Array.isArray(service.variantes) ? service.variantes : [];
   const first = variantes[0];
   const multiple = variantes.length > 1;
+  const esRemota = typeof image === "string" && image.startsWith("http");
 
   return (
     <Link
@@ -28,13 +29,23 @@ export function ServiceCard({ service }: { service: ServicioPublico }) {
     >
       <div className="relative aspect-square overflow-hidden border-b border-sand-200">
         {image ? (
-          <Image
-            src={image}
-            alt={`${service.name} — ${service.location === "domicilio" ? "atención a domicilio" : "atención en consultorio"} ALMAE`}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-          />
+          esRemota ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt={`${service.name} — ${service.location === "domicilio" ? "atención a domicilio" : "atención en consultorio"} ALMAE`}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              loading="lazy"
+            />
+          ) : (
+            <Image
+              src={image}
+              alt={`${service.name} — ${service.location === "domicilio" ? "atención a domicilio" : "atención en consultorio"} ALMAE`}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+          )
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-brand-50 via-sand-100 to-sage-100">
             <span className="font-display text-4xl font-extrabold text-brand-300">

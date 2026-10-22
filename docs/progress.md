@@ -421,3 +421,17 @@ El propietario aportÃ³ tarjetas de servicios **con precios reales** (`Imagenes/S
 - URL local: `http://localhost:3001/admin/multimedia` (requiere sesión owner).
 - Pendiente B4: migrar imágenes de `public/` al bucket y conectar `image_media_id` en bloques/promos (ver `docs/cms-plan.md`).
 - **Sin commit** (pendiente de autorización para B3).
+
+## Hito 3.2-B4 — gestión de servicios y promociones
+
+- Commit B3: **`0e6d8aa`** "feat(almae): biblioteca multimedia CMS B3" (sin push).
+- Migración `0019_servicios_imagen_catalogo.sql` (aplicada localmente): `services.image_media_id` (FK media_assets, on delete set null), `services.catalog_mode` (`reservable`/`visible`/`consulta`), índice `promotions_publicas_idx`, `media_assets.content_hash` (+índice) y CHECK de promociones reforzado (`value > 0` y percent = 100).
+- Imágenes: script `scripts/migrar-imagenes-b4.mjs` migró las 8 fotos de `public/servicios/` al bucket `almae-media` con dedupe por SHA-256 y enlace a `services.image_media_id` (los slugs reales `terapia-fisica-y-rehabilitacion-*` se enlazaron aparte); copias originales conservadas en `public/`; 8/8 URLs públicas verificadas sin rotura.
+- Servicios (`/admin/servicios`): edición completa existente + imagen principal desde Multimedia, modo catálogo (reservable/solo visible/solo consulta), reordenación ?? con intercambio de orden, y listado con miniatura/estado; `guardarServicio` valida `catalog_mode` e `image_media_id` con Zod. Las reservas online siguen siendo solo consultorio (regla intacta en `catalogo-publico.ts`, ahora condicionada además al modo `reservable`).
+- Público: `obtenerCatalogo` expone `imagen` (bucket) y `modo`; `ServiceCard` y detalle de servicio usan la imagen de BD con fallback al mapa local. Reservas existentes e importes históricos no modificados.
+- Promociones (`/admin/promociones`, enlace en nav): CRUD con código único, tipo fijo/%, servicio asociado, fechas, usos máximos, imagen desde Multimedia, orden, pausar/publicar/eliminar (borrado bloqueado si `used_count > 0`); validación Zod server-side (código, percent = 100, fechas coherentes, valores positivos) + CHECK en BD. Página pública `/promociones` ahora lee `promotions` (active+published+vigente en America/Lima) con tarjetas e imagen; vencidas/no publicadas invisibles (también por RLS).
+- Lógica pura `src/lib/services/promociones-publicas.ts` (`esPromocionVigente`) testeable.
+- Pruebas reales: `tests/cms-b4.test.ts` **9/9** (vigencia, catálogo imagen/modo, creación, RLS anon, pausada invisible, percent > 100 rechazado); Playwright B4 **4/4** (anon rechazado, cambiar imagen+modo, crear/publicar/pausar/vencida + público, precio inválido) + regresión completa **27/27**; Vitest total **66/66**; typecheck/lint/build OK.
+- URLs locales: `http://localhost:3001/admin/servicios`, `http://localhost:3001/admin/promociones`, público `http://localhost:3001/promociones`.
+- Pendiente B5: testimonios con consentimiento y sección en público; B6: cierre/publicación final (ver `docs/cms-plan.md`).
+- **Sin commit** (pendiente de autorización para B4).

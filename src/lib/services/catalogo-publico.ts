@@ -1,6 +1,8 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { urlPublicaMedia } from "@/lib/cms/media";
 
 export type ModalidadPublica = "consultorio" | "domicilio";
+export type ModoCatalogo = "reservable" | "visible" | "consulta";
 
 export type VariantePublica = {
   id: string;
@@ -18,6 +20,8 @@ export type ServicioPublico = {
   instructions: string[];
   highlights: string[];
   reservable: boolean;
+  modo: ModoCatalogo;
+  imagen: string | null;
   variantes: VariantePublica[];
 };
 
@@ -25,6 +29,10 @@ const DIAS = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado
 
 function esModalidad(valor: string): valor is ModalidadPublica {
   return valor === "consultorio" || valor === "domicilio";
+}
+
+function esModo(valor: string): valor is ModoCatalogo {
+  return valor === "reservable" || valor === "visible" || valor === "consulta";
 }
 
 function listar(texto: string): string[] {
@@ -57,7 +65,7 @@ export async function obtenerCatalogo(): Promise<ServicioPublico[]> {
   const { data } = await supabase
     .from("services")
     .select(
-      "id, slug, name, description, location, instructions, tagline, highlights, variants:service_variants(id, duration_minutes, amount_cents)",
+      "id, slug, name, description, location, instructions, tagline, highlights, catalog_mode, media:media_assets!services_image_media_id_fkey(storage_path), variants:service_variants(id, duration_minutes, amount_cents)",
     )
     .eq("active", true)
     .order("sort_order");
@@ -72,6 +80,10 @@ export async function obtenerCatalogo(): Promise<ServicioPublico[]> {
           precioCents: v.amount_cents,
         }))
         .sort((a, b) => a.duracionMinutos - b.duracionMinutos);
+      const modo: ModoCatalogo = esModo(s.catalog_mode) ? s.catalog_mode : "reservable";
+      const mediaPath = Array.isArray(s.media)
+        ? (s.media[0] as { storage_path?: string } | undefined)?.storage_path
+        : (s.media as { storage_path?: string } | null)?.storage_path;
       return {
         id: String(s.id),
         slug: s.slug,
@@ -81,7 +93,9 @@ export async function obtenerCatalogo(): Promise<ServicioPublico[]> {
         location: s.location,
         instructions: listar(s.instructions ?? ""),
         highlights: Array.isArray(s.highlights) ? s.highlights.map(String) : [],
-        reservable: s.location === "consultorio" && variantes.length > 0,
+        reservable: s.location === "consultorio" && modo === "reservable" && variantes.length > 0,
+        modo,
+        imagen: mediaPath ? urlPublicaMedia(mediaPath) : null,
         variantes,
       };
     });

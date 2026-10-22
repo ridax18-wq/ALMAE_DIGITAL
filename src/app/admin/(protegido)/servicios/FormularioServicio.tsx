@@ -11,6 +11,7 @@ export type VarianteEditable = {
 
 export function FormularioServicio({
   servicio,
+  imagenes,
 }: {
   servicio: {
     id: string;
@@ -21,8 +22,11 @@ export function FormularioServicio({
     active: boolean;
     instructions: string;
     sort_order: number;
+    catalog_mode: string;
+    image_media_id: string | null;
     variantes: VarianteEditable[];
   } | null;
+  imagenes: { id: string; etiqueta: string; url: string }[];
 }) {
   const variantes = servicio?.variantes ?? [];
   const filas = variantes.length > 0 ? variantes : [{ id: "", duracion: 60, prep: 0, precio: 0, adelanto: null, reservable: false }];
@@ -88,6 +92,47 @@ export function FormularioServicio({
             className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm"
           />
         </div>
+        <div>
+          <label htmlFor="catalog_mode" className="mb-1 block text-sm font-semibold text-ink-900">
+            Modo en el catálogo
+          </label>
+          <select
+            id="catalog_mode"
+            name="catalog_mode"
+            defaultValue={servicio?.catalog_mode ?? "reservable"}
+            className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm"
+          >
+            <option value="reservable">Visible y reservable en línea</option>
+            <option value="visible">Solo visible (sin reserva en línea)</option>
+            <option value="consulta">Solo consulta por WhatsApp</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="image_media_id" className="mb-1 block text-sm font-semibold text-ink-900">
+            Imagen principal
+          </label>
+          <select
+            id="image_media_id"
+            name="image_media_id"
+            defaultValue={servicio?.image_media_id ?? ""}
+            className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm"
+          >
+            <option value="">Sin imagen (usa la predeterminada)</option>
+            {imagenes.map((img) => (
+              <option key={img.id} value={img.id}>
+                {img.etiqueta}
+              </option>
+            ))}
+          </select>
+          {servicio?.image_media_id ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imagenes.find((i) => i.id === servicio.image_media_id)?.url ?? ""}
+              alt="Imagen actual del servicio"
+              className="mt-2 h-24 w-40 rounded-lg object-cover"
+            />
+          ) : null}
+        </div>
         <div className="sm:col-span-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-ink-900">
             <input
@@ -96,7 +141,7 @@ export function FormularioServicio({
               defaultChecked={servicio?.active ?? true}
               className="size-4"
             />
-            Activo (visible y reservable en el sitio público)
+            Activo (visible en el sitio público)
           </label>
         </div>
       </div>

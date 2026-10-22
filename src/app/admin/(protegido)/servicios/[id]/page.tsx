@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FormularioServicio } from "@/app/admin/(protegido)/servicios/FormularioServicio";
+import { opcionesImagen } from "@/lib/cms/media";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 export const metadata: Metadata = {
@@ -26,12 +27,14 @@ export default async function EditarServicioPage({
   const { data: servicio } = await supabase
     .from("services")
     .select(
-      "id, slug, name, description, location, active, instructions, sort_order, variants:service_variants(id, duration_minutes, prep_buffer_minutes, amount_cents, deposit_cents)",
+      "id, slug, name, description, location, active, instructions, sort_order, catalog_mode, image_media_id, variants:service_variants(id, duration_minutes, prep_buffer_minutes, amount_cents, deposit_cents)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!servicio) notFound();
+
+  const imagenes = await opcionesImagen();
 
   const { data: reservasPorVariante } = await supabase
     .from("bookings")
@@ -57,6 +60,7 @@ export default async function EditarServicioPage({
             </p>
           ) : null}
           <FormularioServicio
+            imagenes={imagenes}
             servicio={{
               id: servicio.id,
               slug: servicio.slug,
@@ -66,6 +70,8 @@ export default async function EditarServicioPage({
               active: servicio.active,
               instructions: servicio.instructions,
               sort_order: servicio.sort_order,
+              catalog_mode: servicio.catalog_mode,
+              image_media_id: servicio.image_media_id,
               variantes: (servicio.variants ?? []).map((v) => ({
                 id: String(v.id),
                 duracion: v.duration_minutes,

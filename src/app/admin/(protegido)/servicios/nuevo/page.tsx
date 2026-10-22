@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FormularioServicio } from "@/app/admin/(protegido)/servicios/FormularioServicio";
+import { opcionesImagen } from "@/lib/cms/media";
 
 export const metadata: Metadata = {
   title: "Nuevo servicio",
@@ -9,7 +10,8 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function NuevoServicioPage() {
+export default async function NuevoServicioPage() {
+  const imagenes = await opcionesImagen();
   return (
     <main className="py-8">
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
@@ -20,7 +22,7 @@ export default function NuevoServicioPage() {
           <h1 className="font-display text-2xl font-bold text-ink-900">
             Nuevo servicio
           </h1>
-          <FormularioServicio servicio={null} />
+          <FormularioServicio servicio={null} imagenes={imagenes} />
         </div>
       </div>
     </main>

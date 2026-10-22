@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -38,6 +39,17 @@ export async function subirImagen(datos: FormData): Promise<void> {
   if (!validacion.ok) volver(validacion.error);
 
   const admin = createSupabaseServiceClient();
+  const contentHash = createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+
+  const { data: duplicada } = await admin
+    .from("media_assets")
+    .select("id")
+    .eq("content_hash", contentHash)
+    .maybeSingle();
+  if (duplicada) {
+    redirect("/admin/multimedia?error=imagen_duplicada");
+  }
+
   const { error: errStorage } = await admin.storage
     .from(BUCKET)
     .upload(validacion.nombre, buffer, { contentType: archivo.type, upsert: false });
@@ -49,6 +61,7 @@ export async function subirImagen(datos: FormData): Promise<void> {
     mime_type: archivo.type,
     bytes: archivo.size,
     alt_text: alt,
+    content_hash: contentHash,
     created_by: user.id,
   });
   if (error) {
