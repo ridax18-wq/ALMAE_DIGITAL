@@ -357,3 +357,12 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 ## Hito 2.3 — español (es-PE) y recuperación de contraseña
 
 - `src/lib/locale.ts` centraliza locale/tiempo; fechas DD/MM/AAAA; `errores-auth.ts` traduce errores de Supabase; login/recuperación/cambio de contraseña completos; nav "Dashboard" → "Panel de control"; pendiente configurar plantillas de correo en Dashboard (docs/supabase-setup.md).
+
+## Hito 3.1 — cierre técnico (lanzadores y validación)
+
+- Lanzadores: `INICIAR_ALMAE.bat` (detecta 3000/3001, reutiliza ALMAE activo, espera HTTP y abre Chrome) y `DETENER_ALMAE.bat` (solo detiene el proceso en 3000/3001 que responde con ALMAE y es node.exe, con confirmación).
+- Acceso: `docs/COMO_ABRIR_ALMAE.md`; tarea de Cursor en `.vscode/tasks.json`.
+- Correcciones: los .bat se guardan con CRLF; paréntesis en mensajes rompían bloques `if`; la parada validaba el PID antes de comprobar que el puerto fuera ALMAE.
+- Pruebas reales: typecheck OK; lint OK; Vitest 24/24 (corregido `hito22.test.ts`: la fecha fija caía en sábado con horario 09–13); `probar-motor.mjs` MOTOR_OK; Playwright 16/16; build OK.
+- Lanzador probado: 3000 ocupado por proceso ajeno → usa 3001, responde 200 con ALMAE; reutiliza el servidor activo; DETENER cierra solo ALMAE (3000 ajeno intacto).
+- Pendiente de Hito 3.2: bandeja de reservas HELD con tiempo restante, actualización sin recarga, historial consolidado de adelantos y módulo CMS completo.

@@ -23,7 +23,16 @@ function fechaFutura(dias: number): string {
   return d.toLocaleDateString("en-CA", { timeZone: "America/Lima" });
 }
 
-const FECHA = fechaFutura(9);
+function proximoDiaLaboral(desdeDias: number): string {
+  for (let d = desdeDias; d < desdeDias + 14; d += 1) {
+    const iso = fechaFutura(d);
+    const dow = new Date(`${iso}T12:00:00-05:00`).getDay();
+    if (dow >= 1 && dow <= 5) return iso;
+  }
+  return fechaFutura(desdeDias);
+}
+
+const FECHA = proximoDiaLaboral(9);
 
 async function retener(hora: string, telefono: string) {
   return await anon.rpc("crear_retencion_web", {

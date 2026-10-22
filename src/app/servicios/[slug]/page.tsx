@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Section";
 import { PageHero } from "@/components/ui/PageHero";
 import { CheckIcon, ClockIcon, SparkIcon, WhatsAppIcon } from "@/components/icons";
-import { services, getService } from "@/lib/catalog";
+import { obtenerServicio } from "@/lib/services/catalogo-publico";
 import { formatPen } from "@/lib/format";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
@@ -22,9 +22,7 @@ const IMG = {
 
 type Params = { slug: string };
 
-export function generateStaticParams(): Params[] {
-  return services.map((service) => ({ slug: service.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -32,7 +30,7 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const service = getService(slug);
+  const service = await obtenerServicio(slug);
   if (!service) return { title: "Servicio no encontrado" };
   return {
     title: `${service.name} — ${service.location === "domicilio" ? "a domicilio" : "en consultorio"}`,
@@ -46,7 +44,7 @@ export default async function ServicioDetallePage({
   params: Promise<Params>;
 }) {
   const { slug } = await params;
-  const service = getService(slug);
+  const service = await obtenerServicio(slug);
   if (!service) notFound();
 
   const image = IMG[service.slug as keyof typeof IMG];
@@ -124,22 +122,19 @@ export default async function ServicioDetallePage({
               <h2 className="font-display text-lg font-bold text-ink-900">
                 Precios
               </h2>
-              {service.variants.length > 0 ? (
+              {service.variantes.length > 0 ? (
                 <ul className="mt-4 divide-y divide-sand-200">
-                  {service.variants.map((v) => (
+                  {service.variantes.map((v) => (
                     <li
-                      key={v.durationMinutes}
+                      key={v.duracionMinutos}
                       className="flex items-center justify-between gap-4 py-2.5 text-sm"
                     >
                       <span className="inline-flex items-center gap-1.5 text-ink-700">
                         <ClockIcon className="size-4 text-brand-600" />
-                        {v.durationMinutes} min
-                        {v.provisionalDuration ? (
-                          <span className="text-xs text-ink-500">(prov.)</span>
-                        ) : null}
+                        {v.duracionMinutos} min
                       </span>
                       <span className="font-semibold text-ink-900">
-                        {formatPen(v.priceCents)}
+                        {formatPen(v.precioCents)}
                       </span>
                     </li>
                   ))}
@@ -150,15 +145,13 @@ export default async function ServicioDetallePage({
                   los valores actuales.
                 </p>
               )}
-              {service.variants.length > 0 ? (
-                <p className="mt-3 text-xs text-ink-500">
-                  El adelanto para confirmar la reserva se definirá junto con el
-                  sistema de pagos. El saldo se cancela en el consultorio el
-                  día de tu cita.
-                </p>
-              ) : null}
+              <p className="mt-3 text-xs text-ink-500">
+                El pago del adelanto se coordina por WhatsApp y la reserva se
+                confirma al verificarlo. El saldo se cancela en el consultorio
+                el día de tu cita.
+              </p>
               <div className="mt-6 flex flex-col gap-3">
-                {service.bookable ? (
+                {service.reservable ? (
                   <Button href="/reservar" className="w-full">
                     Agendar esta cita
                   </Button>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ClockIcon, MapPinIcon, ArrowRightIcon } from "@/components/icons";
 import { formatPen } from "@/lib/format";
-import type { Service } from "@/lib/catalog";
+import type { ServicioPublico } from "@/lib/services/catalogo-publico";
 
 const IMG = {
   "terapia-fisica-y-rehabilitacion-consultorio": "/servicios/terapia-fisica-consultorio.jpg",
@@ -15,10 +15,11 @@ const IMG = {
   "reflexologia-domicilio": "/servicios/reflexologia-domicilio.jpg",
 } as const;
 
-export function ServiceCard({ service }: { service: Service }) {
+export function ServiceCard({ service }: { service: ServicioPublico }) {
   const image = IMG[service.slug as keyof typeof IMG];
-  const first = service.variants[0];
-  const multiple = service.variants.length > 1;
+  const variantes = Array.isArray(service.variantes) ? service.variantes : [];
+  const first = variantes[0];
+  const multiple = variantes.length > 1;
 
   return (
     <Link
@@ -66,23 +67,23 @@ export function ServiceCard({ service }: { service: Service }) {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <ClockIcon className="size-4 text-brand-600" />
-            {service.variants.length === 0
+            {variantes.length === 0
               ? "Duración a coordinar"
               : multiple
-                ? service.variants
-                    .map((v) => `${v.durationMinutes} min`)
+                ? variantes
+                    .map((v) => `${v.duracionMinutos} min`)
                     .join(" · ")
-                : first?.durationMinutes
-                  ? `${first.durationMinutes} min`
+                : first?.duracionMinutos
+                  ? `${first.duracionMinutos} min`
                   : null}
           </span>
         </div>
         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
-          {service.variants.length === 0
+          {variantes.length === 0
             ? "Precio por consultar"
             : multiple
-              ? `Desde ${formatPen(first?.priceCents ?? 0)}`
-              : formatPen(first?.priceCents ?? 0)}
+              ? `Desde ${formatPen(first?.precioCents ?? 0)}`
+              : formatPen(first?.precioCents ?? 0)}
           <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>

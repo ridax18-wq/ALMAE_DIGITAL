@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PageHero } from "@/components/ui/PageHero";
 import { Container } from "@/components/ui/Section";
 import { ServiceCard } from "@/components/ui/ServiceCard";
-import { servicesByLocation } from "@/lib/catalog";
+import { obtenerCatalogo, type ServicioPublico } from "@/lib/services/catalogo-publico";
 
 export const metadata: Metadata = {
   title: "Servicios de fisioterapia, masajes y bienestar",
@@ -13,13 +13,12 @@ export const metadata: Metadata = {
 function Grupo({
   titulo,
   descripcion,
-  slugPrefix,
+  grupo,
 }: {
   titulo: string;
   descripcion: string;
-  slugPrefix: "consultorio" | "domicilio";
+  grupo: ServicioPublico[];
 }) {
-  const grupo = servicesByLocation(slugPrefix);
   return (
     <div>
       <h2 className="font-display text-xl font-bold text-ink-900 sm:text-2xl">
@@ -37,7 +36,11 @@ function Grupo({
   );
 }
 
-export default function ServiciosPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ServiciosPage() {
+  const catalogo = await obtenerCatalogo();
+
   return (
     <>
       <PageHero
@@ -51,12 +54,12 @@ export default function ServiciosPage() {
             <Grupo
               titulo="En consultorio"
               descripcion="Altos del Rímac 250, Rímac. Reserva en línea disponible para estos servicios."
-              slugPrefix="consultorio"
+              grupo={catalogo.filter((s) => s.location === "consultorio")}
             />
             <Grupo
               titulo="A domicilio"
               descripcion="Llevamos el equipo profesional a tu casa. El horario y la zona se coordinan por WhatsApp."
-              slugPrefix="domicilio"
+              grupo={catalogo.filter((s) => s.location === "domicilio")}
             />
           </div>
         </Container>

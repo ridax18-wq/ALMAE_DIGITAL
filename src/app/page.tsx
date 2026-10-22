@@ -18,7 +18,8 @@ import {
   WalletIcon,
   WhatsAppIcon,
 } from "@/components/icons";
-import { faqs, scheduleNote, services } from "@/lib/catalog";
+import { faqs } from "@/lib/faqs";
+import { obtenerCatalogo, obtenerNotaHorario } from "@/lib/services/catalogo-publico";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { site } from "@/lib/site";
 
@@ -28,9 +29,15 @@ export const metadata: Metadata = {
     "Terapia física y rehabilitación, masajes, acupuntura y reflexología en Lima, en consultorio y a domicilio. Consulta horarios disponibles y confirma tu cita en minutos.",
 };
 
-export default function HomePage() {
-  const whatsappUrl = buildWhatsAppUrl("orientacion");
-  const featured = services.filter((s) => s.bookable).slice(0, 3);
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const [whatsappUrl, catalogo, notaHorario] = await Promise.all([
+    Promise.resolve(buildWhatsAppUrl("orientacion")),
+    obtenerCatalogo(),
+    obtenerNotaHorario(),
+  ]);
+  const featured = catalogo.filter((s) => s.reservable).slice(0, 3);
 
   return (
     <>
@@ -65,7 +72,7 @@ export default function HomePage() {
               <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-brand-100">
                 <li className="inline-flex items-center gap-1.5">
                   <CheckIcon className="size-4 text-brand-300" />
-                  Confirmación inmediata
+                  Confirmación con adelanto verificado
                 </li>
                 <li className="inline-flex items-center gap-1.5">
                   <CheckIcon className="size-4 text-brand-300" />
@@ -73,7 +80,7 @@ export default function HomePage() {
                 </li>
                 <li className="inline-flex items-center gap-1.5">
                   <CheckIcon className="size-4 text-brand-300" />
-                  Adelanto reembolsable según política
+                  Coordinación por WhatsApp
                 </li>
               </ul>
             </div>
@@ -119,8 +126,8 @@ export default function HomePage() {
           {[
             { icon: <HeartIcon className="size-6" />, title: "Elige tu terapia", text: "Selecciona el servicio que necesitas entre nuestros tratamientos." },
             { icon: <CalendarIcon className="size-6" />, title: "Selecciona fecha y hora", text: "Verás los horarios disponibles y reservas el que mejor te acomode." },
-            { icon: <WalletIcon className="size-6" />, title: "Realiza tu adelanto", text: "Un adelanto seguro asegura tu horario; el saldo se paga en el consultorio." },
-            { icon: <CheckIcon className="size-6" />, title: "Recibe tu confirmación", text: "Tu cita queda confirmada y guardas el enlace para revisarla o reprogramarla." },
+            { icon: <WalletIcon className="size-6" />, title: "Coordinas tu adelanto", text: "Tu horario queda separado 15 minutos; el adelanto se coordina por WhatsApp." },
+            { icon: <CheckIcon className="size-6" />, title: "Recibe tu confirmación", text: "ALMAE verifica tu pago y confirma tu cita; guardas el enlace para revisarla." },
           ].map((paso, index) => (
             <li key={paso.title} className="rounded-2xl border border-sand-200 bg-white p-5 shadow-xs">
               <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
@@ -283,7 +290,7 @@ export default function HomePage() {
                   <strong className="font-semibold text-ink-900">
                     Horario:
                   </strong>{" "}
-                  {scheduleNote}
+                  {notaHorario}
                 </span>
               </li>
             </ul>
@@ -300,8 +307,8 @@ export default function HomePage() {
             ¿Listo para empezar tu recuperación?
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-brand-100">
-            Reserva tu cita en minutos: eliges horario, confirmas con el
-            adelanto y tu espacio queda asegurado.
+            Reserva tu cita en minutos: eliges horario, coordinas el
+            adelanto por WhatsApp y tu espacio queda asegurado.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <Button href="/reservar" variant="secondary" className="text-base">
