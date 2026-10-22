@@ -386,3 +386,12 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - Correcciones durante A2: T14 reservaba a las 18:00 pegado al servicio 17:00–18:00 y el gap de 15 min lo rechazaba correctamente (se mueve a 09:00); residuos de diagnóstico limpiados.
 - Pendiente Hito 3.2-B (CMS integral por subetapas B1–B6, `docs/cms-plan.md`).
 - **Sin commit** (pendiente de autorización del propietario; incluye A1 sin commitear).
+
+## Hito 3.2-B1 — estructura del CMS (auditoría, modelo y RLS)
+
+- Commit de cierre 3.2-A: **`f8bb641`** "feat(almae): completar reservas y adelantos hito 3.2-A" (sin push).
+- Auditoría: no había tablas de contenido ni bucket Storage; `promotions` solo con `active`; catálogo público ya en BD (3.1); textos hardcodeados en `page.tsx`, `Footer`, `nosotros`, `terminos`.
+- Migración `0016_cms_contenidos.sql` (aditiva, aplicada localmente): `media_assets`, `content_blocks` (draft/published), `content_revisions` (versionado genérico), `testimonials` (CHECK de consentimiento), columnas nuevas en `promotions` (`image_media_id`, `published`, `sort_order`).
+- RLS: anon/autenticado solo filas published (testimonios con consentimiento); escritura `es_administrador()`; RPC `publicar_contenido` guarda revisión y devuelve path a revalidar (publicación sin rebuild).
+- Pruebas reales: migración aplica con `ON_ERROR_STOP`; humo RLS con `set role anon`: drafts invisibles (0), tras publicar visibles (1); typecheck/lint/build OK.
+- Pendiente B2–B6 (textos, Storage, servicios/promos, ubicación, vista previa/publicación) según `docs/cms-plan.md` §0.

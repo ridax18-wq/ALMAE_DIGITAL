@@ -2,6 +2,29 @@
 
 > Requerimiento del propietario: CMS privado y fácil de usar para administrar multimedia, banners, testimonios, promociones, servicios, precios y horarios; con vista previa, roles y RLS; cambios reflejados en el sitio público **sin reconstruir la aplicación**. Nada destructivo sin autorización.
 
+## 0. B1 — Estructura aprobada (Hito 3.2-B1)
+
+Auditoría realizada sobre el stack local: no existían tablas de contenido (solo `promotions`, con `active` y sin imagen/publicado/orden); sin bucket de Storage; catálogo público ya lee BD desde el hito 3.1 (`catalogo-publico.ts`, `catalog.ts` retirado); textos de home/nosotros/contacto hardcodeados en componentes.
+
+Migración **0016_cms_contenidos.sql** (aplicada localmente; aditiva):
+
+- `media_assets` — metadata de imágenes (bucket `almae-media` se crea en B3): `storage_path` único, dimensiones, `bytes ≤ 2 MB`, `alt_text`, `created_by`.
+- `content_blocks` — textos/banners por `block_key` único (`hero_home`, `intro_nosotros`, `cta_contacto`, `faq_section`): título, subtítulo, `body` jsonb, imagen asociada y **estado `draft`/`published`** (enum `cms_status`).
+- `content_revisions` — historial genérico de versiones (`entity_type` + `snapshot` jsonb) para restaurar en B6.
+- `testimonials` — con `patient_consent` + `consent_at`; restricción CHECK impide publicar sin consentimiento.
+- `promotions` — columnas nuevas: `image_media_id`, `published` (default true), `sort_order`.
+- RLS: anon/autenticado solo SELECT de filas **published** (testimonios además exigen consentimiento); escritura solo con `es_administrador()`; revisiones solo panel.
+- RPC `publicar_contenido`: guarda revisión y devuelve el `path` a revalidar (`revalidatePath`) — publicación sin rebuild.
+
+Decisiones B1:
+- Reutilizar tablas existentes (servicios, horarios, promociones, configuración); sin duplicados.
+- Borrador/publicado por fila + revisiones auditables; nada se publica por defecto salvo promociones (`published` default true para no romper la página existente).
+- Subida de binarios solo server-side (B3); anon lee metadata de medios (sin secretos).
+
+Subetapas siguientes: B2 textos/secciones desde `content_blocks`; B3 Storage + galería `/admin/multimedia`; B4 fotos de servicios y promociones; B5 ubicación/Mapa/contacto como bloques; B6 vista previa, publicación y restauración de revisiones.
+
+---
+
 ## 1. Diagnóstico de la aplicación (estado actual)
 
 | Módulo | Panel (BD) | Sitio público | Diagnóstico |
