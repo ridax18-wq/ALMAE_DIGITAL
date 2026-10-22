@@ -408,3 +408,16 @@ El propietario aportÃ³ tarjetas de servicios **con precios reales** (`Imagenes/S
 - URLs locales: ediciÃ³n `http://localhost:3001/admin/contenidos` (dev) Â· pÃºblica `http://localhost:3001/`.
 - Pendiente B3: bucket `almae-media` (Storage) + galerÃ­a `/admin/multimedia` (subida server-side, alt-text, uso, eliminaciÃ³n).
 - **Sin commit** (pendiente de autorizaciÃ³n para B2).
+
+## Hito 3.2-B3 — biblioteca de imágenes y multimedia
+
+- Commit B2: **`72dbb22`** "feat(almae): editor CMS de textos y secciones B2".
+- Migración `0018_storage_almae_media.sql` (aplicada localmente): bucket **`almae-media`** público (lectura anónima solo de imágenes comerciales subidas por el owner; sin datos clínicos), límite 5 MB, tipos JPG/PNG/WebP; políticas `storage.objects`: escritura/borrado solo `es_administrador()`.
+- `/admin/multimedia` (enlace en el nav del panel): biblioteca con miniaturas, subida server-side, texto alternativo inline, indicador "En uso/Sin uso" (content_blocks, promotions, testimonials) y borrado con protección si la imagen está en uso.
+- Validación en servidor (`src/lib/cms/media-validacion.ts`): tamaño = 5 MB, MIME permitido, magic bytes JPEG/PNG/WebP, nombre único `comercial-<ts>-<4hex>-<slug>` sin rutas ni puntos; `src/lib/cms/media.ts`: URL pública y consulta de uso.
+- `next.config.ts`: `experimental.serverActions.bodySizeLimit: "6mb"` (por defecto Next limita a 1 MB y rechazaba subidas grandes antes de nuestra validación).
+- Correcciones: `nombreSeguro` eliminaba mal `..` (hoy sin puntos en la base) y colisionaba en el mismo milisegundo (sufijo aleatorio); e2e resiliente a duplicados residuales y limpieza de objetos huérfanos vía API de Storage (SQL directo sobre `storage.objects` está bloqueado).
+- Pruebas reales: `tests/cms-media.test.ts` 6/6 (tamaño, formato, magic bytes, nombre seguro, uso, URL); Playwright multimedia **2/2** (anon rechazado; subida válida, alt, edit, rechazo >5 MB, rechazo .txt, borrado) + regresión completa **23/23**; Vitest total **57/57**; typecheck/lint/build OK.
+- URL local: `http://localhost:3001/admin/multimedia` (requiere sesión owner).
+- Pendiente B4: migrar imágenes de `public/` al bucket y conectar `image_media_id` en bloques/promos (ver `docs/cms-plan.md`).
+- **Sin commit** (pendiente de autorización para B3).
