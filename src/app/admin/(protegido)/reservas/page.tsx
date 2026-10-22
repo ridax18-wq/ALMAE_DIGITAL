@@ -3,6 +3,16 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ETIQUETAS_ESTADO, ESTADOS_FILTRO } from "@/lib/services/estados";
 import { formatPen } from "@/lib/format";
+import {
+  clasificarReserva,
+  ordenarPorVencimiento,
+  puedeConfirmarse,
+  saldoPendienteCents,
+} from "@/lib/services/bandeja-reservas";
+import { aprobarConfirmacion } from "@/app/admin/(protegido)/reservas/actions";
+import { BotonConfirmar } from "@/app/admin/(protegido)/reservas/BotonConfirmar";
+import { ActualizadorBandeja } from "@/app/admin/(protegido)/reservas/ActualizadorBandeja";
+import { ContadorRestante } from "@/app/admin/(protegido)/reservas/ContadorRestante";
 
 export const metadata: Metadata = {
   title: "Reservas",
@@ -10,6 +20,10 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+
+function instanteServidor(): number {
+  return new Date().getTime();
+}
 
 type FilaReserva = {
   id: string;
@@ -24,9 +38,9 @@ type FilaReserva = {
 export default async function ReservasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; confirmada?: string; error?: string }>;
 }) {
-  const { estado, q } = await searchParams;
+  const { estado, q, confirmada, error: errorUrl } = await searchParams;
   const supabase = await createSupabaseServerClient();
 
   let consulta = supabase
@@ -81,9 +95,156 @@ export default async function ReservasPage({
     },
   );
 
+  const { data: retenidas } = await supabase
+    .from("bookings")
+    .select("id, public_code, starts_at, hold_expires_at, amount_cents, deposit_required_cents, patient_id, service_id, status")
+    .eq("status", "HELD")
+    .order("hold_expires_at", { ascending: true })
+    .limit(50);
+
+  const idsPendientes = (retenidas ?? []).map((r) => String(r.id));
+  const { data: adelantosPendientes } = idsPendientes.length
+    ? await supabase
+        .from("manual_payments")
+        .select("booking_id, amount_cents, verification_status")
+        .in("booking_id", idsPendientes)
+    : { data: [] };
+
+  const verificadoPorReserva = new Map<string, number>();
+  const reportadoPorReserva = new Map<string, number>();
+  for (const pago of adelantosPendientes ?? []) {
+    const clave = String(pago.booking_id);
+    if (pago.verification_status === "VERIFIED") {
+      verificadoPorReserva.set(clave, (verificadoPorReserva.get(clave) ?? 0) + Number(pago.amount_cents));
+    } else if (pago.verification_status === "REPORTED") {
+      reportadoPorReserva.set(clave, (reportadoPorReserva.get(clave) ?? 0) + Number(pago.amount_cents));
+    }
+  }
+
+  const ahoraMs = instanteServidor();
+  const pendientes = ordenarPorVencimiento(
+    (retenidas ?? []).map((r) => ({
+      ...r,
+      vencimientoIso: r.hold_expires_at,
+      clase: clasificarReserva(r.status, r.hold_expires_at, ahoraMs),
+      verificado: verificadoPorReserva.get(String(r.id)) ?? 0,
+      reportado: reportadoPorReserva.get(String(r.id)) ?? 0,
+    })),
+  ).filter((r) => r.clase === "PENDIENTE" || r.clase === "PROXIMA_A_VENCER");
+
+  const idsPendientesPaciente = Array.from(new Set(pendientes.map((p) => String(p.patient_id))));
+  const { data: pacientesPendientes } = idsPendientesPaciente.length
+    ? await supabase.from("patients").select("id, full_name").in("id", idsPendientesPaciente)
+    : { data: [] };
+  const nombrePacientePendiente = new Map(
+    (pacientesPendientes ?? []).map((p) => [String(p.id), p.full_name]),
+  );
+
   return (
     <main className="py-8">
+      <ActualizadorBandeja />
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        {confirmada ? (
+          <p role="status" className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            Cita confirmada correctamente.
+          </p>
+        ) : null}
+        {errorUrl ? (
+          <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {decodeURIComponent(errorUrl)}
+          </p>
+        ) : null}
+        <section aria-labelledby="pendientes" className="mb-8">
+          <h2 id="pendientes" className="font-display text-xl font-bold text-ink-900">
+            Pendientes de confirmación
+          </h2>
+          <p className="mt-1 text-sm text-ink-500">
+            Horarios separados que aún no tienen adelanto verificado. Se actualiza cada 15 segundos.
+          </p>
+          {pendientes.length === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-sand-200 bg-white p-6 text-center text-sm text-ink-500">
+              No tienes reservas pendientes.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto rounded-2xl border border-sand-200 bg-white shadow-xs">
+              <table className="w-full text-sm">
+                <thead className="bg-sand-100 text-left text-xs uppercase text-ink-500">
+                  <tr>
+                    <th className="px-4 py-2.5">Código</th>
+                    <th className="px-4 py-2.5">Paciente</th>
+                    <th className="px-4 py-2.5">Servicio</th>
+                    <th className="px-4 py-2.5">Fecha y hora</th>
+                    <th className="px-4 py-2.5">Adelanto requerido</th>
+                    <th className="px-4 py-2.5">Verificado</th>
+                    <th className="px-4 py-2.5">Saldo pendiente</th>
+                    <th className="px-4 py-2.5">Tiempo restante</th>
+                    <th className="px-4 py-2.5">Estado</th>
+                    <th className="px-4 py-2.5">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sand-200">
+                  {pendientes.map((p) => (
+                    <tr key={p.id} className="hover:bg-sand-50">
+                      <td className="px-4 py-2.5 font-mono text-xs">{p.public_code}</td>
+                      <td className="px-4 py-2.5">{nombrePacientePendiente.get(String(p.patient_id))}</td>
+                      <td className="px-4 py-2.5">{nombreServicio.get(String(p.service_id))}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        {String(p.starts_at).slice(0, 10)} {String(p.starts_at).slice(11, 16)}
+                      </td>
+                      <td className="px-4 py-2.5">{formatPen(p.deposit_required_cents)}</td>
+                      <td className="px-4 py-2.5">
+                        {formatPen(p.verificado)}
+                        {p.reportado > 0 ? (
+                          <span className="block text-xs text-amber-800">
+                            Reportado sin verificar: {formatPen(p.reportado)}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {formatPen(saldoPendienteCents(p.deposit_required_cents, p.verificado))}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {p.vencimientoIso ? <ContadorRestante vencimientoIso={p.vencimientoIso} /> : "—"}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                            p.clase === "PROXIMA_A_VENCER"
+                              ? "border-red-200 bg-red-50 text-red-900"
+                              : "border-amber-200 bg-amber-50 text-amber-900"
+                          }`}
+                        >
+                          {p.clase === "PROXIMA_A_VENCER" ? "Próxima a vencer" : "Pendiente de confirmación"}
+                        </span>
+                        {puedeConfirmarse(p.clase) && p.verificado >= p.deposit_required_cents ? (
+                          <span className="block text-xs text-green-900">Adelanto verificado: lista para confirmar</span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex flex-col items-start gap-1.5">
+                          <form action={aprobarConfirmacion}>
+                            <input type="hidden" name="booking_id" value={p.id} />
+                            <input type="hidden" name="retorno" value="/admin/reservas" />
+                            <BotonConfirmar
+                              habilitado={puedeConfirmarse(p.clase) && p.verificado >= p.deposit_required_cents}
+                            />
+                          </form>
+                          <Link
+                            href={`/admin/reservas/${p.id}`}
+                            className="text-xs font-semibold text-brand-700 hover:underline"
+                          >
+                            Ver detalle
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold text-ink-900">Reservas</h1>

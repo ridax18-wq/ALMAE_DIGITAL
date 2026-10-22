@@ -366,3 +366,23 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - Pruebas reales: typecheck OK; lint OK; Vitest 24/24 (corregido `hito22.test.ts`: la fecha fija caía en sábado con horario 09–13); `probar-motor.mjs` MOTOR_OK; Playwright 16/16; build OK.
 - Lanzador probado: 3000 ocupado por proceso ajeno → usa 3001, responde 200 con ALMAE; reutiliza el servidor activo; DETENER cierra solo ALMAE (3000 ajeno intacto).
 - Pendiente de Hito 3.2: bandeja de reservas HELD con tiempo restante, actualización sin recarga, historial consolidado de adelantos y módulo CMS completo.
+
+## Hito 3.2-A1 — bandeja de reservas pendientes
+
+- `/admin/reservas`: sección "Pendientes de confirmación" (HELD vigentes, ordenadas por vencimiento) con código, paciente, servicio, fecha/hora, adelanto requerido, verificado, saldo pendiente, tiempo restante, estado y "Ver detalle".
+- Lógica pura en `src/lib/services/bandeja-reservas.ts`: clasificación (pendiente / próxima a vencer / expirada), saldo solo con adelantos VERIFIED (los REPORTED no cuentan).
+- Actualización: `ActualizadorBandeja` (router.refresh cada 15 s, pausado con la pestaña oculta) y `ContadorRestante` (contador local de 1 s desde el vencimiento del servidor, sin consultas a Supabase).
+- Reutiliza confirmación, extensión, registro y verificación de adelantos del detalle existente (sin mecanismos nuevos).
+- Pruebas reales: Vitest 32/32 (8 nuevas en `tests/bandeja-reservas.test.ts`); Playwright módulo 2/2 y regresión admin 6/6; typecheck OK; lint OK; build OK.
+- Pendiente 3.2-A2: validación de confirmación desde la bandeja (botón directo), historial consolidado de adelantos en /admin/pagos, y pruebas de reserva expirada y protección owner de la bandeja.
+
+## Hito 3.2-A2 — confirmación desde bandeja, historial de adelantos y extensión acumulada
+
+- Confirmación directa desde la bandeja: botón "Confirmar cita" por fila (deshabilitado si no es confirmable o falta adelanto VERIFIED; bloqueado mientras hay una operación en curso vía `useFormStatus`) reutilizando `aprobarConfirmacion`, con retorno validado a `/admin/reservas` y banner de éxito/error.
+- Historial consolidado de adelantos en `/admin/pagos`: filtros por rango de fechas (días calendario en America/Lima), estado, método, búsqueda por código o nombre de paciente, paginación en servidor (25/página), verificador y totales contando **solo VERIFIED**; lógica pura en `src/lib/services/pagos-historial.ts`.
+- Migración `0015`: `extender_retencion` ahora limita el tiempo **acumulado** (vencimiento actual − creación − TTL) y rechaza con `extension_excede_maximo` + `acumulado_minutos`/`disponible_minutos`; `confirmar_reserva_admin` ya no inserta su propio evento (el trigger lo registra con el motivo vía `app.booking_reason`), evitando eventos CONFIRMED duplicados en la bitácora.
+- `vitest.config.mts`: `fileParallelism: false` (los tests de integración comparten la BD local y se pisaban al correr en paralelo).
+- Pruebas reales: `tests/hito32.test.ts` **10/10** (T02 anon no confirma, T04 HELD vigente, T05 vencida rechazada, T06 REPORTED no cuenta, T07 VERIFIED confirma, T08 sin adelanto bloqueada, T09 idempotente sin duplicar eventos, T11 gap de agenda respetado, T14 extensión acumulada, T16 auditoría); `tests/pagos-historial.test.ts` 4/4; total Vitest **46/46**; Playwright 6/6 admin + 11/11 públicos; typecheck/lint/build OK.
+- Correcciones durante A2: T14 reservaba a las 18:00 pegado al servicio 17:00–18:00 y el gap de 15 min lo rechazaba correctamente (se mueve a 09:00); residuos de diagnóstico limpiados.
+- Pendiente Hito 3.2-B (CMS integral por subetapas B1–B6, `docs/cms-plan.md`).
+- **Sin commit** (pendiente de autorización del propietario; incluye A1 sin commitear).

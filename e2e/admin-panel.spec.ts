@@ -69,8 +69,8 @@ test.describe("FASE 6 — panel administrativo", () => {
 
     await entrarComoOwner(page);
     await page.getByRole("link", { name: "Reservas", exact: true }).click();
-    const filaPropia = page.locator("tbody tr").filter({ hasText: "Paciente Admin E2E" }).first();
-    await filaPropia.getByRole("link", { name: "Ver", exact: true }).click();
+    const filaPropia = page.getByRole("region", { name: "Pendientes de confirmación" }).locator("tbody tr").filter({ hasText: "Paciente Admin E2E" }).first();
+    await filaPropia.getByRole("link", { name: "Ver detalle", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Registrar adelanto manual" })).toBeVisible();
 
     await page.selectOption('select[name="method"]', "YAPE");
@@ -88,6 +88,19 @@ test.describe("FASE 6 — panel administrativo", () => {
 
     await page.goto(urlToken);
     await expect(page.locator("main").getByText("Cita confirmada")).toBeVisible();
+  });
+
+  test("la bandeja muestra la reserva HELD con contador y saldo", async ({ page }) => {
+    await reservarHastaToken(page);
+
+    await entrarComoOwner(page);
+    await page.goto("/admin/reservas");
+    const seccion = page.getByRole("region", { name: "Pendientes de confirmación" });
+    const fila = seccion.locator("tbody tr").filter({ hasText: "Paciente Admin E2E" }).first();
+    await expect(fila).toBeVisible();
+    await expect(fila).toContainText("Pendiente de confirmación");
+    await expect(fila).toContainText(/\d{2}:\d{2}/);
+    await expect(fila).toContainText("S/ 20,00");
   });
 
   test("crear un servicio nuevo queda guardado en el panel", async ({ page }) => {

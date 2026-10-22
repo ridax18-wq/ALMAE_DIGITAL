@@ -15,7 +15,9 @@ try {
 
 export default defineConfig({
   test: {
+    environment: "node",
     include: ["tests/**/*.test.ts"],
+    fileParallelism: false,
     environment: "node",
   },
   resolve: {

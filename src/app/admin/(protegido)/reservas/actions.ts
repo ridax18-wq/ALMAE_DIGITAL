@@ -104,18 +104,22 @@ export async function rechazarAdelantoManual(datos: FormData): Promise<void> {
 
 export async function aprobarConfirmacion(datos: FormData): Promise<void> {
   const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
+  const retornoBruto = String(datos.get("retorno") ?? "");
+  const retorno = retornoBruto === "/admin/reservas" ? retornoBruto : null;
   if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
 
   const motivo = String(datos.get("motivo") ?? "");
   const resultado = await confirmarReservaAdmin(bookingId.data, motivo);
 
   if (!resultado.ok) {
-    redirect(
-      `/admin/reservas/${bookingId.data}?error=${encodeURIComponent(resultado.error ?? "error")}`,
-    );
+    const destino = retorno ?? `/admin/reservas/${bookingId.data}`;
+    redirect(`${destino}?error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
   revalidatePath(`/admin/reservas/${bookingId.data}`);
+  revalidatePath("/admin/reservas");
+  revalidatePath("/reserva");
+  if (retorno) redirect(`${retorno}?confirmada=1`);
   redirect(`/admin/reservas/${bookingId.data}?confirmada=1`);
 }
 
