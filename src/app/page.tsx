@@ -18,8 +18,9 @@ import {
   WalletIcon,
   WhatsAppIcon,
 } from "@/components/icons";
-import { faqs } from "@/lib/faqs";
+import { faqs as faqsDefecto } from "@/lib/faqs";
 import { obtenerCatalogo, obtenerNotaHorario } from "@/lib/services/catalogo-publico";
+import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { site } from "@/lib/site";
 
@@ -32,12 +33,20 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [whatsappUrl, catalogo, notaHorario] = await Promise.all([
-    Promise.resolve(buildWhatsAppUrl("orientacion")),
-    obtenerCatalogo(),
-    obtenerNotaHorario(),
-  ]);
+  const [whatsappUrl, catalogo, notaHorario, hero, comoFunciona, especialista, promociones, ctaFinal, faq] =
+    await Promise.all([
+      Promise.resolve(buildWhatsAppUrl("orientacion")),
+      obtenerCatalogo(),
+      obtenerNotaHorario(),
+      obtenerCuerpoPublicado("hero_home"),
+      obtenerCuerpoPublicado("home_como_funciona"),
+      obtenerCuerpoPublicado("home_especialista"),
+      obtenerCuerpoPublicado("home_promociones"),
+      obtenerCuerpoPublicado("home_cta_final"),
+      obtenerCuerpoPublicado("faq_section"),
+    ]);
   const featured = catalogo.filter((s) => s.reservable).slice(0, 3);
+  const faqs = faq.items.length > 0 ? faq.items : faqsDefecto;
 
   return (
     <>
@@ -47,41 +56,33 @@ export default async function HomePage() {
             <div>
               <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand-700 px-3 py-1.5 text-xs font-semibold text-brand-100">
                 <SparkIcon className="size-4" />
-                Fisioterapia, rehabilitación y bienestar — {site.subtitle}
+                {hero.eyebrow} — {site.subtitle}
               </p>
               <h1 className="font-display text-3xl leading-tight font-extrabold text-balance sm:text-4xl lg:text-5xl">
-                Tu bienestar comienza con el movimiento
+                {hero.title}
               </h1>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-brand-100 sm:text-lg">
-                En ALMAE te acompañamos con atención personalizada en
-                fisioterapia, rehabilitación y bienestar, para ayudarte a
-                recuperar movimiento, funcionalidad y calidad de vida.
+                {hero.description}
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Button href="/reservar" className="text-base">
                   <CalendarIcon className="size-5" />
-                  Agendar mi cita
+                  {hero.cta_primario}
                 </Button>
                 {whatsappUrl ? (
                   <Button href={whatsappUrl} variant="secondary" external>
                     <WhatsAppIcon className="size-5 text-whatsapp" />
-                    Consultar por WhatsApp
+                    {hero.cta_secundario}
                   </Button>
                 ) : null}
               </div>
               <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-brand-100">
-                <li className="inline-flex items-center gap-1.5">
-                  <CheckIcon className="size-4 text-brand-300" />
-                  Confirmación con adelanto verificado
-                </li>
-                <li className="inline-flex items-center gap-1.5">
-                  <CheckIcon className="size-4 text-brand-300" />
-                  Horarios en tiempo real
-                </li>
-                <li className="inline-flex items-center gap-1.5">
-                  <CheckIcon className="size-4 text-brand-300" />
-                  Coordinación por WhatsApp
-                </li>
+                {hero.beneficios.map((beneficio) => (
+                  <li key={beneficio} className="inline-flex items-center gap-1.5">
+                    <CheckIcon className="size-4 text-brand-300" />
+                    {beneficio}
+                  </li>
+                ))}
               </ul>
             </div>
             <div className="order-first lg:order-last">
@@ -116,35 +117,31 @@ export default async function HomePage() {
         </div>
       </Section>
 
-      <Section
-        id="como-funciona"
-        eyebrow="Cómo funciona"
-        title="Reservar tu cita es muy simple"
-        tone="plain"
-      >
-        <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { icon: <HeartIcon className="size-6" />, title: "Elige tu terapia", text: "Selecciona el servicio que necesitas entre nuestros tratamientos." },
-            { icon: <CalendarIcon className="size-6" />, title: "Selecciona fecha y hora", text: "Verás los horarios disponibles y reservas el que mejor te acomode." },
-            { icon: <WalletIcon className="size-6" />, title: "Coordinas tu adelanto", text: "Tu horario queda separado 15 minutos; el adelanto se coordina por WhatsApp." },
-            { icon: <CheckIcon className="size-6" />, title: "Recibe tu confirmación", text: "ALMAE verifica tu pago y confirma tu cita; guardas el enlace para revisarla." },
-          ].map((paso, index) => (
-            <li key={paso.title} className="rounded-2xl border border-sand-200 bg-white p-5 shadow-xs">
-              <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-                {paso.icon}
-              </span>
-              <p className="mb-1 text-xs font-bold tracking-[0.18em] uppercase text-brand-600">
-                Paso {index + 1}
-              </p>
-              <h3 className="font-display text-base font-bold text-ink-900">
-                {paso.title}
-              </h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-700">
-                {paso.text}
-              </p>
-            </li>
-          ))}
-        </ol>
+      {comoFunciona.visible ? (
+        <Section
+          id="como-funciona"
+          eyebrow="Cómo funciona"
+          title={comoFunciona.title}
+          tone="plain"
+        >
+          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {comoFunciona.pasos.map((paso, index) => (
+              <li key={paso.title} className="rounded-2xl border border-sand-200 bg-white p-5 shadow-xs">
+                <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                  {[<HeartIcon key="h" className="size-6" />, <CalendarIcon key="c" className="size-6" />, <WalletIcon key="w" className="size-6" />, <CheckIcon key="k" className="size-6" />][index % 4]}
+                </span>
+                <p className="mb-1 text-xs font-bold tracking-[0.18em] uppercase text-brand-600">
+                  Paso {index + 1}
+                </p>
+                <h3 className="font-display text-base font-bold text-ink-900">
+                  {paso.title}
+                </h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-700">
+                  {paso.text}
+                </p>
+              </li>
+            ))}
+          </ol>
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-dashed border-brand-300 bg-brand-50 p-4 text-sm text-ink-700">
           <InfoIcon className="mt-0.5 size-5 shrink-0 text-brand-600" />
           <p>
@@ -154,11 +151,12 @@ export default async function HomePage() {
           </p>
         </div>
       </Section>
+      ) : null}
 
       <Section
         id="especialista"
         eyebrow="Tu especialista"
-        title="Atención profesional dedicada"
+        title={especialista.title}
         tone="plain"
       >
         <div className="grid items-center gap-8 lg:grid-cols-[300px_1fr]">
@@ -176,10 +174,7 @@ export default async function HomePage() {
               {site.professional.title} — {site.subtitle}
             </p>
             <p className="mt-4 text-base leading-relaxed text-ink-700">
-              Cada sesión es atendida personalmente por nuestra profesional:
-              valoración cuidadosa, explicación clara de tu condición y un plan
-              de trabajo realista, con técnicas manuales y los equipos
-              adecuados para cada caso.
+              {especialista.text}
             </p>
             <h3 className="mt-6 text-sm font-bold tracking-wide uppercase text-ink-700">
               Equipamiento
@@ -214,17 +209,16 @@ export default async function HomePage() {
         </div>
       </Section>
 
+      {promociones.visible ? (
       <Section
         id="promociones"
         eyebrow="Promociones"
-        title="Beneficios y novedades"
+        title={promociones.title}
         tone="soft"
       >
         <div className="rounded-2xl border border-dashed border-brand-300 bg-white p-8 text-center">
           <p className="mx-auto max-w-xl text-sm leading-relaxed text-ink-700">
-            No publicamos ofertas sin aprobación y configuración administrativa.
-            Cuando existan promociones vigentes, las encontrarás aquí y en
-            nuestra página de promociones.
+            {promociones.text}
           </p>
           <div className="mt-6">
             <Button href="/promociones" variant="secondary">
@@ -233,6 +227,7 @@ export default async function HomePage() {
           </div>
         </div>
       </Section>
+      ) : null}
 
       <Section
         id="testimonios"
@@ -251,8 +246,8 @@ export default async function HomePage() {
 
       <Section
         id="faq"
-        eyebrow="Preguntas frecuentes"
-        title="Dudas comunes antes de reservar"
+        eyebrow={faq.eyebrow}
+        title={faq.title}
         tone="soft"
       >
         <Faq items={faqs} />
@@ -304,15 +299,14 @@ export default async function HomePage() {
       <section className="bg-brand-700 py-14 text-white sm:py-16">
         <Container className="text-center">
           <h2 className="font-display text-2xl font-bold text-balance sm:text-3xl">
-            ¿Listo para empezar tu recuperación?
+            {ctaFinal.title}
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-brand-100">
-            Reserva tu cita en minutos: eliges horario, coordinas el
-            adelanto por WhatsApp y tu espacio queda asegurado.
+            {ctaFinal.text}
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <Button href="/reservar" variant="secondary" className="text-base">
-              Agendar cita
+              {ctaFinal.cta_primario}
             </Button>
             {whatsappUrl ? (
               <Button
@@ -322,7 +316,7 @@ export default async function HomePage() {
                 className="text-base"
               >
                 <WhatsAppIcon className="size-5" />
-                Hacer una consulta
+                {ctaFinal.cta_secundario}
               </Button>
             ) : null}
           </div>

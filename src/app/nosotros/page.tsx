@@ -5,12 +5,15 @@ import { Photo } from "@/components/ui/Photo";
 import { Button } from "@/components/ui/Button";
 import { CheckIcon } from "@/components/icons";
 import { site } from "@/lib/site";
+import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
 
 export const metadata: Metadata = {
   title: "Nosotros",
   description:
     "Conoce a ALMAE Terapia y Spa: consulta de fisioterapia, rehabilitación y bienestar en Lima, con atención cercana, profesional y dedicada.",
 };
+
+export const dynamic = "force-dynamic";
 
 const VALORES = [
   {
@@ -27,40 +30,26 @@ const VALORES = [
   },
 ];
 
-export default function NosotrosPage() {
+export default async function NosotrosPage() {
+  const intro = await obtenerCuerpoPublicado("intro_nosotros");
+
   return (
     <>
       <PageHero
         eyebrow="Nosotros"
-        title="Bienestar con criterio, trato con calidez"
-        description="ALMAE Terapia y Spa nace con la idea de que la recuperación debe explicarse con claridad y vivirse con tranquilidad: profesionales dedicados, procesos simples y trato humano."
+        title={intro.hero_title}
+        description={intro.hero_description}
       />
       <Section
         eyebrow="Quiénes somos"
-        title="Una consulta enfocada en ti"
+        title={intro.seccion_title}
         tone="plain"
       >
         <div className="grid items-center gap-8 lg:grid-cols-2">
           <div className="space-y-4 text-base leading-relaxed text-ink-700">
-            <p>
-              Somos una consulta de fisioterapia, rehabilitación y bienestar en
-              {" "}{site.city}. Atendemos de forma presencial con{" "}
-              <strong className="font-semibold text-ink-900">
-                {site.professional.name}
-              </strong>
-              , para que cada persona reciba tiempo, atención y explicaciones
-              claras sobre su condición.
-            </p>
-            <p>
-              Trabajamos con un enfoque funcional: primero entender el origen
-              del problema, luego un plan de tratamiento medible y ajustable,
-              y siempre con indicaciones que puedes practicar desde casa.
-            </p>
-            <p>
-              Además de la terapia física y la rehabilitación, cuidamos el
-              bienestar integral con masajes antiestrés, masaje reductor y
-              reflexología facial y podal.
-            </p>
+            {intro.parrafos.map((parrafo, i) => (
+              <p key={i}>{parrafo}</p>
+            ))}
           </div>
           <Photo
             src="/fotos/especialista-letrero.jpg"

@@ -3,6 +3,7 @@ import { PageHero } from "@/components/ui/PageHero";
 import { Container } from "@/components/ui/Section";
 import { ServiceCard } from "@/components/ui/ServiceCard";
 import { obtenerCatalogo, type ServicioPublico } from "@/lib/services/catalogo-publico";
+import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
 
 export const metadata: Metadata = {
   title: "Servicios de fisioterapia, masajes y bienestar",
@@ -39,14 +40,17 @@ function Grupo({
 export const dynamic = "force-dynamic";
 
 export default async function ServiciosPage() {
-  const catalogo = await obtenerCatalogo();
+  const [catalogo, intro] = await Promise.all([
+    obtenerCatalogo(),
+    obtenerCuerpoPublicado("servicios_intro"),
+  ]);
 
   return (
     <>
       <PageHero
         eyebrow="Servicios"
-        title="Servicios para tu recuperación y bienestar"
-        description="Atención presencial en nuestro consultorio del Rímac y también a domicilio. Los servicios a domicilio y las sesiones en definición de precio se coordinan por WhatsApp."
+        title={intro.title}
+        description={intro.description}
       />
       <main className="bg-sand-50 py-12 sm:py-16">
         <Container>

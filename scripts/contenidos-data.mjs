@@ -1,0 +1,110 @@
+// Datos de contenidos iniciales (solo escapes ASCII seguros).
+export const faq = [
+  {
+    question: "\u00bfNecesito una orden m\u00e9dica para empezar?",
+    answer:
+      "No es obligatorio para la valoraci\u00f3n inicial. Si durante la evaluaci\u00f3n encontramos se\u00f1ales que requieren atenci\u00f3n m\u00e9dica, te lo indicaremos con claridad y te orientaremos al respecto.",
+  },
+  {
+    question: "\u00bfC\u00f3mo funciona la reserva con adelanto?",
+    answer:
+      "Eliges tu servicio, fecha y hora; ingresas tus datos de contacto y tu horario queda separado 15 minutos. Luego coordinas el pago del adelanto por WhatsApp con ALMAE y, al verificar tu pago, confirmamos tu cita en el sistema.",
+  },
+  {
+    question: "\u00bfAtienden a domicilio?",
+    answer:
+      "S\u00ed. La terapia f\u00edsica y los masajes se ofrecen tambi\u00e9n a domicilio, coordinados por WhatsApp: definimos juntos la zona, el horario y las indicaciones para la sesi\u00f3n en tu casa.",
+  },
+  {
+    question: "\u00bfPuedo reprogramar mi cita?",
+    answer:
+      "S\u00ed. Desde el enlace de tu reserva puedes solicitar una reprogramaci\u00f3n con anticipaci\u00f3n suficiente, seg\u00fan la pol\u00edtica de reservas publicada.",
+  },
+  {
+    question: "\u00bfQu\u00e9 pasa si no puedo asistir?",
+    answer:
+      "Puedes cancelar o reprogramar desde tu enlace de reserva hasta el plazo indicado en la pol\u00edtica de reservas. Te recomendamos avisar con la mayor anticipaci\u00f3n posible para que el horario pueda atender a otra persona.",
+  },
+  {
+    question: "\u00bfQu\u00e9 t\u00e9cnicas y equipos utilizan?",
+    answer:
+      "Contamos con ultrasonido, corriente TENS, l\u00e1ser, punci\u00f3n seca y ventosas, adem\u00e1s de t\u00e9cnicas manuales, maderoterapia, acupuntura y reflexolog\u00eda seg\u00fan el servicio elegido.",
+  },
+  {
+    question: "\u00bfC\u00f3mo obtengo el reembolso del adelanto si cancelo?",
+    answer:
+      "Depende del plazo de aviso y del medio de pago, conforme a la pol\u00edtica de reservas publicada. Ante cualquier duda, escr\u00edbenos por WhatsApp y lo resolvemos contigo.",
+  },
+];
+
+export const bloques = {
+  hero_home: {
+    eyebrow: "Fisioterapia, rehabilitaci\u00f3n y bienestar",
+    title: "Tu bienestar comienza con el movimiento",
+    description:
+      "En ALMAE te acompa\u00f1amos con atenci\u00f3n personalizada en fisioterapia, rehabilitaci\u00f3n y bienestar, para ayudarte a recuperar movimiento, funcionalidad y calidad de vida.",
+    cta_primario: "Agendar mi cita",
+    cta_secundario: "Consultar por WhatsApp",
+    beneficios: [
+      "Confirmaci\u00f3n con adelanto verificado",
+      "Horarios en tiempo real",
+      "Coordinaci\u00f3n por WhatsApp",
+    ],
+  },
+  home_como_funciona: {
+    visible: true,
+    title: "Reservar tu cita es muy simple",
+    pasos: [
+      { title: "Elige tu terapia", text: "Selecciona el servicio que necesitas entre nuestros tratamientos." },
+      { title: "Selecciona fecha y hora", text: "Ver\u00e1s los horarios disponibles y reservas el que mejor te acomode." },
+      { title: "Coordinas tu adelanto", text: "Tu horario queda separado 15 minutos; el adelanto se coordina por WhatsApp." },
+      { title: "Recibe tu confirmaci\u00f3n", text: "ALMAE verifica tu pago y confirma tu cita; guardas el enlace para revisarla." },
+    ],
+  },
+  home_especialista: {
+    title: "Atenci\u00f3n profesional dedicada",
+    text: "Cada sesi\u00f3n es atendida personalmente por nuestra profesional: valoraci\u00f3n cuidadosa, explicaci\u00f3n clara de tu condici\u00f3n y un plan de trabajo realista, con t\u00e9cnicas manuales y los equipos adecuados para cada caso.",
+  },
+  home_promociones: {
+    visible: true,
+    title: "Beneficios y novedades",
+    text: "No publicamos ofertas sin aprobaci\u00f3n y configuraci\u00f3n administrativa. Cuando existan promociones vigentes, las encontrar\u00e1s aqu\u00ed y en nuestra p\u00e1gina de promociones.",
+  },
+  home_cta_final: {
+    title: "\u00bfListo para empezar tu recuperaci\u00f3n?",
+    text: "Reserva tu cita en minutos: eliges horario, coordinas el adelanto por WhatsApp y tu espacio queda asegurado.",
+    cta_primario: "Agendar cita",
+    cta_secundario: "Hacer una consulta",
+  },
+  intro_nosotros: {
+    hero_title: "Bienestar con criterio, trato con calidez",
+    hero_description:
+      "ALMAE Terapia y Spa nace con la idea de que la recuperaci\u00f3n debe explicarse con claridad y vivirse con tranquilidad: profesionales dedicados, procesos simples y trato humano.",
+    seccion_title: "Una consulta enfocada en ti",
+    parrafos: [
+      "Somos una consulta de fisioterapia, rehabilitaci\u00f3n y bienestar en Lima. Atendemos de forma presencial con nuestra profesional, para que cada persona reciba tiempo, atenci\u00f3n y explicaciones claras sobre su condici\u00f3n.",
+      "Trabajamos con un enfoque funcional: primero entender el origen del problema, luego un plan de tratamiento medible y ajustable, y siempre con indicaciones que puedes practicar desde casa.",
+      "Adem\u00e1s de la terapia f\u00edsica y la rehabilitaci\u00f3n, cuidamos el bienestar integral con masajes antiestr\u00e9s, masaje reductor y reflexolog\u00eda facial y podal.",
+    ],
+  },
+  servicios_intro: {
+    title: "Servicios para tu recuperaci\u00f3n y bienestar",
+    description:
+      "Atenci\u00f3n presencial en nuestro consultorio del R\u00edmac y tambi\u00e9n a domicilio. Los servicios a domicilio y las sesiones en definici\u00f3n de precio se coordinan por WhatsApp.",
+  },
+  contacto_intro: {
+    title: "Hablemos por WhatsApp",
+    description:
+      "La forma m\u00e1s r\u00e1pida de contactarnos es WhatsApp. Elige el motivo de tu consulta y te responderemos en horario de atenci\u00f3n.",
+  },
+  faq_section: {
+    eyebrow: "Preguntas frecuentes",
+    title: "Dudas comunes antes de reservar",
+    items: faq,
+  },
+  footer_intro: {
+    text: "Fisioterapia, rehabilitaci\u00f3n y bienestar. Atenci\u00f3n presencial con un profesional dedicado en Lima.",
+  },
+};
+
+

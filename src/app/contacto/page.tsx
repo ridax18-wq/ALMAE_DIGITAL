@@ -5,6 +5,9 @@ import { MapPinIcon, ClockIcon, WhatsAppIcon, InfoIcon } from "@/components/icon
 import { scheduleNote } from "@/lib/catalog";
 import { buildWhatsAppUrl, type WhatsAppIntent } from "@/lib/whatsapp";
 import { site } from "@/lib/site";
+import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Contacto",
@@ -20,16 +23,17 @@ const ACCIONES: { intent: WhatsAppIntent; label: string; detail?: string }[] = [
   { intent: "pago", label: "Ayuda con un pago" },
 ];
 
-export default function ContactoPage() {
+export default async function ContactoPage() {
   const whatsappUrl = buildWhatsAppUrl("general");
   const numeroConfigurado = whatsappUrl !== null;
+  const intro = await obtenerCuerpoPublicado("contacto_intro");
 
   return (
     <>
       <PageHero
         eyebrow="Contacto"
-        title="Hablemos por WhatsApp"
-        description="La forma más rápida de contactarnos es WhatsApp. Elige el motivo de tu consulta y te responderemos en horario de atención."
+        title={intro.title}
+        description={intro.description}
       />
       <main className="bg-sand-50 py-12 sm:py-16">
         <Container className="max-w-3xl">

@@ -4,6 +4,7 @@ import { MapPinIcon, ClockIcon, WhatsAppIcon } from "@/components/icons";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { scheduleNote } from "@/lib/catalog";
 import { getSocialLinks, site } from "@/lib/site";
+import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
 
 const NAV = [
   { href: "/servicios", label: "Servicios" },
@@ -19,8 +20,9 @@ const LEGAL = [
   { href: "/privacidad", label: "Privacidad" },
 ];
 
-export function Footer() {
+export async function Footer() {
   const whatsappUrl = buildWhatsAppUrl("general");
+  const intro = await obtenerCuerpoPublicado("footer_intro");
 
   return (
     <footer className="border-t border-brand-900 bg-brand-900 text-brand-100">
@@ -34,8 +36,7 @@ export function Footer() {
             className="h-auto w-32"
           />
           <p className="mt-3 max-w-xs text-sm leading-relaxed">
-            Fisioterapia, rehabilitación y bienestar. Atención presencial con un
-            profesional dedicado en {site.city}.
+            {intro.text}
           </p>
           {getSocialLinks().length > 0 ? (
             <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">

@@ -395,3 +395,16 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - RLS: anon/autenticado solo filas published (testimonios con consentimiento); escritura `es_administrador()`; RPC `publicar_contenido` guarda revisión y devuelve path a revalidar (publicación sin rebuild).
 - Pruebas reales: migración aplica con `ON_ERROR_STOP`; humo RLS con `set role anon`: drafts invisibles (0), tras publicar visibles (1); typecheck/lint/build OK.
 - Pendiente B2–B6 (textos, Storage, servicios/promos, ubicación, vista previa/publicación) según `docs/cms-plan.md` §0.
+
+## Hito 3.2-B2 — editor de textos y secciones
+
+- Commit B1: **`3ad8624`** "feat(almae): estructura CMS y versionado B1".
+- `/admin/contenidos`: lista por página (Inicio, Nosotros, Servicios, Contacto, FAQ, Pie) con estado (publicado/borrador/sin cambios) y fecha de última modificación en Lima; edición en `/admin/contenidos/[bloque]` y vista previa con selector escritorio/móvil en `/admin/contenidos/[bloque]/vista-previa` (solo admin).
+- 10 bloques editables (`src/lib/cms/bloques.ts`): títulos, descripciones, textos, botones CTA, beneficios, pasos, FAQ, visibilidad de secciones y párrafos; sin enlaces arbitrarios (los href de CTA quedan fijos en código).
+- Guardar borrador / publicar / cancelar: acciones server con sesión Supabase, validación Zod, saneado (sin `<`/`>`, sin caracteres de control, límites de longitud) y sin `dangerouslySetInnerHTML` (XSS imposible por render de texto). Al publicar se guarda revisión vía RPC `publicar_contenido` y `revalidatePath` por página (footer invalida el layout) — publicación sin rebuild.
+- Público: home, Nosotros, Servicios, Contacto, FAQ y footer leen solo bloques **published** con fallback a los textos sembrados (migración `0017`, JSON con escapes Unicode); borradores invisibles para anon.
+- Corrección de entorno: el canal de escritura corrompe acentos UTF-8 en archivos nuevos — `bloques.ts`, el seed 0017 y el spec e2e se regeneraron con escapes ASCII (`\uXXXX`); script `scripts/restaurar-contenidos-b2.mjs` + `scripts/contenidos-data.mjs` restauraron la BD (0 filas con `??`).
+- Pruebas reales: Vitest **51/51** (`tests/cms-bloques.test.ts` 5/5: saneado, validación, defaults); Playwright CMS **4/4** (anon rechazado, borrador no visible, publicar + persistencia tras recarga, FAQ edit+restaurar, vista previa móvil/escritorio) + regresión 15/15 (fase1, reservas, admin-panel); typecheck/lint/build OK; BD verificada restaurada al texto original.
+- URLs locales: edición `http://localhost:3001/admin/contenidos` (dev) · pública `http://localhost:3001/`.
+- Pendiente B3: bucket `almae-media` (Storage) + galería `/admin/multimedia` (subida server-side, alt-text, uso, eliminación).
+- **Sin commit** (pendiente de autorización para B2).
