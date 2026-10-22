@@ -21,6 +21,7 @@ import {
 import { faqs as faqsDefecto } from "@/lib/faqs";
 import { obtenerCatalogo, obtenerNotaHorario } from "@/lib/services/catalogo-publico";
 import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
+import { obtenerTestimonios } from "@/lib/cms/testimonios-publicos";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { site } from "@/lib/site";
 
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [whatsappUrl, catalogo, notaHorario, hero, comoFunciona, especialista, promociones, ctaFinal, faq] =
+  const [whatsappUrl, catalogo, notaHorario, hero, comoFunciona, especialista, promociones, ctaFinal, faq, testimonios] =
     await Promise.all([
       Promise.resolve(buildWhatsAppUrl("orientacion")),
       obtenerCatalogo(),
@@ -44,6 +45,7 @@ export default async function HomePage() {
       obtenerCuerpoPublicado("home_promociones"),
       obtenerCuerpoPublicado("home_cta_final"),
       obtenerCuerpoPublicado("faq_section"),
+      obtenerTestimonios(),
     ]);
   const featured = catalogo.filter((s) => s.reservable).slice(0, 3);
   const faqs = faq.items.length > 0 ? faq.items : faqsDefecto;
@@ -235,13 +237,46 @@ export default async function HomePage() {
         title="Historias reales, con permiso"
         tone="plain"
       >
-        <div className="rounded-2xl border border-dashed border-brand-300 bg-white p-8 text-center">
-          <p className="mx-auto max-w-xl text-sm leading-relaxed text-ink-700">
-            Esta sección permanecerá desactivada hasta contar con testimonios
-            reales y con el consentimiento expreso de cada paciente. No
-            publicamos testimonios ni fotos de pacientes sin autorización.
-          </p>
-        </div>
+        {testimonios.length > 0 ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {testimonios.map((t) => (
+              <figure
+                key={t.id}
+                className="flex flex-col gap-3 rounded-2xl border border-sand-200 bg-white p-6 shadow-xs"
+              >
+                {t.foto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={t.foto}
+                    alt={`Foto de ${t.patientName}`}
+                    className="size-16 rounded-full object-cover"
+                    loading="lazy"
+                  />
+                ) : null}
+                <blockquote className="text-sm leading-relaxed text-ink-700 italic">
+                  “{t.quote}”
+                </blockquote>
+                <figcaption className="mt-auto flex items-center justify-between gap-2 text-sm">
+                  <span className="font-semibold text-ink-900">{t.patientName}</span>
+                  {t.rating ? (
+                    <span className="text-brand-700" aria-label={`Calificación ${t.rating} de 5`}>
+                      {"★".repeat(t.rating)}
+                      {"☆".repeat(5 - t.rating)}
+                    </span>
+                  ) : null}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-brand-300 bg-white p-8 text-center">
+            <p className="mx-auto max-w-xl text-sm leading-relaxed text-ink-700">
+              Esta sección permanecerá desactivada hasta contar con testimonios
+              reales y con el consentimiento expreso de cada paciente. No
+              publicamos testimonios ni fotos de pacientes sin autorización.
+            </p>
+          </div>
+        )}
       </Section>
 
       <Section

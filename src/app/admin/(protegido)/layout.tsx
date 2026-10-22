@@ -25,6 +25,7 @@ const NAVEGACION = [
   { href: "/admin/contenidos", label: "Contenidos" },
   { href: "/admin/multimedia", label: "Multimedia" },
   { href: "/admin/promociones", label: "Promociones" },
+  { href: "/admin/testimonios", label: "Testimonios" },
   { href: "/admin/reportes", label: "Reportes" },
   { href: "/admin/configuracion", label: "Configuración" },
 ];

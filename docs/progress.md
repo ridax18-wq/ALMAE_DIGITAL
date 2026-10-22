@@ -435,3 +435,14 @@ El propietario aportÃ³ tarjetas de servicios **con precios reales** (`Imagenes/S
 - URLs locales: `http://localhost:3001/admin/servicios`, `http://localhost:3001/admin/promociones`, público `http://localhost:3001/promociones`.
 - Pendiente B5: testimonios con consentimiento y sección en público; B6: cierre/publicación final (ver `docs/cms-plan.md`).
 - **Sin commit** (pendiente de autorización para B4).
+
+## Hito 3.2-B5 — testimonios con consentimiento
+
+- Commit B4: **`31f6708`** "feat(almae): gestionar servicios y promociones CMS B4" (sin push).
+- `/admin/testimonios` (enlace en nav): CRUD con nombre, cita (10-500), calificación 1-5 opcional, foto desde Multimedia, casilla de **consentimiento expreso** y estado borrador/publicado; publicar sin consentimiento bloqueado en Zod server-side y por CHECK de BD (`testimonio_publicado_consentido`, `testimonio_consentimiento_fecha`); `consent_at` se registra al consentir/publicar; eliminación libre; auditoría de acciones.
+- Público: `src/lib/cms/testimonios-publicos.ts` (`obtenerTestimonios`, solo `status=published`, que implica consentimiento por RLS + CHECK); sección de testimonios del home ahora muestra tarjetas (cita, nombre, estrellas, foto redonda) cuando hay publicados, y conserva el placeholder de consentimiento cuando no hay ninguno (cumple la regla de no inventar testimonios).
+- Sin cambios en tablas (modelo desde B1); sin tocar reservas ni pagos.
+- Pruebas reales: `tests/cms-testimonios.test.ts` **4/4** (CHECK BD impide publicar sin consent, anon solo ve publicados, `obtenerTestimonios` filtra borradores/sin consent, CHECK de consent_at); Playwright B5 **2/2** (anon rechazado; flujo crear borrador ? publicar bloqueado sin consent ? marcar consent+publicar ? visible en home ? eliminar ? desaparece) + regresión completa **29/29**; Vitest total **70/70**; typecheck/lint/build OK.
+- URL local: `http://localhost:3001/admin/testimonios`; público en home `/#testimonios`.
+- Pendiente B6: cierre del CMS (ubicación/contacto como bloques si se requiere, restauración de revisiones, banner de datos de demo en dev, checklist final).
+- **Sin commit** (pendiente de autorización para B5).
