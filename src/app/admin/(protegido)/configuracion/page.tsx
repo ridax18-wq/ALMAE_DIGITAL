@@ -20,7 +20,7 @@ export default async function ConfiguracionPage({
   const { data: config } = await supabase
     .from("business_settings")
     .select(
-      "id, booking_hold_ttl_minutes, booking_gap_minutes, min_booking_lead_hours, max_advance_days, cancellation_policy_hours, advance_percent, max_hold_extension_minutes, whatsapp_number, address_public",
+      "id, booking_hold_ttl_minutes, booking_gap_minutes, min_booking_lead_hours, max_advance_days, cancellation_policy_hours, advance_percent, max_hold_extension_minutes",
     )
     .limit(1)
     .maybeSingle();
@@ -99,23 +99,27 @@ export default async function ConfiguracionPage({
               </label>
               <input id="extension" name="max_hold_extension_minutes" type="number" min="0" max="120" defaultValue={config.max_hold_extension_minutes} className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm" />
             </div>
-            <div>
-              <label htmlFor="whatsapp" className="mb-1 block text-sm font-semibold text-ink-900">
-                WhatsApp (formato internacional, ej: 51919608174)
-              </label>
-              <input id="whatsapp" name="whatsapp_number" defaultValue={config.whatsapp_number ?? ""} className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm" />
-            </div>
-            <div>
-              <label htmlFor="direccion" className="mb-1 block text-sm font-semibold text-ink-900">
-                Dirección pública
-              </label>
-              <input id="direccion" name="address_public" defaultValue={config.address_public ?? ""} className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm" />
-            </div>
           </div>
           <button type="submit" className="mt-6 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-800">
             Guardar configuración
           </button>
         </form>
+
+        <div className="mt-6 rounded-2xl border border-sand-200 bg-white p-6 shadow-xs">
+          <h2 className="font-display text-lg font-bold text-ink-900">Datos públicos</h2>
+          <p className="mt-1 text-sm text-ink-500">
+            WhatsApp, correo y redes se editan en <strong>Contacto</strong>;
+            dirección, mapa y presentación del local en <strong>Ubicación</strong>.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <a href="/admin/contacto" className="rounded-xl border border-sand-300 px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-sand-50">
+              Ir a Contacto
+            </a>
+            <a href="/admin/ubicacion" className="rounded-xl border border-sand-300 px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-sand-50">
+              Ir a Ubicación
+            </a>
+          </div>
+        </div>
       </div>
     </main>
   );

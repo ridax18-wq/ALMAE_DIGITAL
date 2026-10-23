@@ -22,10 +22,15 @@ const MESSAGES: Record<WhatsAppIntent, string> = {
 export function buildWhatsAppUrl(
   intent: WhatsAppIntent,
   detail?: string,
+  override?: { numero?: string; mensaje?: string },
 ): string | null {
-  const number = getWhatsAppNumber();
+  const numeroCrudo = override?.numero?.replace(/[^\d]/g, "") ?? "";
+  const number = numeroCrudo.length > 0 ? numeroCrudo : getWhatsAppNumber();
   if (!number) return null;
-  const base = MESSAGES[intent];
+  const base =
+    intent === "general" && override?.mensaje?.trim()
+      ? override.mensaje.trim()
+      : MESSAGES[intent];
   const text = detail ? `${base} ${detail}.` : base;
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }

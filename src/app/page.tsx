@@ -22,6 +22,7 @@ import { faqs as faqsDefecto } from "@/lib/faqs";
 import { obtenerCatalogo, obtenerNotaHorario } from "@/lib/services/catalogo-publico";
 import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
 import { obtenerTestimonios } from "@/lib/cms/testimonios-publicos";
+import { obtenerConfiguracionPublica, esUrlMapsSegura, urlEmbedMaps, urlComoLlegar } from "@/lib/cms/config-publica";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { site } from "@/lib/site";
 
@@ -34,9 +35,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const config = await obtenerConfiguracionPublica();
   const [whatsappUrl, catalogo, notaHorario, hero, comoFunciona, especialista, promociones, ctaFinal, faq, testimonios] =
     await Promise.all([
-      Promise.resolve(buildWhatsAppUrl("orientacion")),
+      Promise.resolve(
+        buildWhatsAppUrl("orientacion", undefined, { numero: config.whatsapp || undefined }),
+      ),
       obtenerCatalogo(),
       obtenerNotaHorario(),
       obtenerCuerpoPublicado("hero_home"),
@@ -49,6 +53,10 @@ export default async function HomePage() {
     ]);
   const featured = catalogo.filter((s) => s.reservable).slice(0, 3);
   const faqs = faq.items.length > 0 ? faq.items : faqsDefecto;
+  const direccionVisible = config.direccionCompleta || site.address;
+  const conMapa = esUrlMapsSegura(config.mapsUrl);
+  const embedMaps = conMapa ? urlEmbedMaps(config.mapsUrl, direccionVisible) : "";
+  const comoLlegar = urlComoLlegar(config.mapsUrl, direccionVisible);
 
   return (
     <>
@@ -295,11 +303,23 @@ export default async function HomePage() {
         tone="plain"
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          <Placeholder
-            label="Mapa de ubicación"
-            aspect="aspect-[16/10]"
-            className="border-solid"
-          />
+          {embedMaps ? (
+            <div className="overflow-hidden rounded-2xl border border-sand-200 bg-white">
+              <iframe
+                src={embedMaps}
+                title="Mapa de ubicación de ALMAE en Google Maps"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="aspect-[16/10] w-full border-0"
+              />
+            </div>
+          ) : (
+            <Placeholder
+              label="Mapa de ubicación"
+              aspect="aspect-[16/10]"
+              className="border-solid"
+            />
+          )}
           <div className="rounded-2xl border border-sand-200 bg-white p-6">
             <h3 className="font-display text-lg font-bold text-ink-900">
               Información de visita
@@ -311,7 +331,12 @@ export default async function HomePage() {
                   <strong className="font-semibold text-ink-900">
                     Dirección:
                   </strong>{" "}
-                  {site.address}
+                  {direccionVisible}
+                  {config.direccionReferencia ? (
+                    <span className="mt-0.5 block text-ink-500">
+                      {config.direccionReferencia}
+                    </span>
+                  ) : null}
                 </span>
               </li>
               <li className="flex items-start gap-3">
@@ -320,12 +345,19 @@ export default async function HomePage() {
                   <strong className="font-semibold text-ink-900">
                     Horario:
                   </strong>{" "}
-                  {notaHorario}
+                  {config.hoursNote || notaHorario}
                 </span>
               </li>
             </ul>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Button href="/reservar">Agendar mi cita</Button>
+              <Button
+                href={comoLlegar}
+                variant="secondary"
+                external
+              >
+                {config.mapsUrl ? "Cómo llegar" : "Buscar en Google Maps"}
+              </Button>
             </div>
           </div>
         </div>

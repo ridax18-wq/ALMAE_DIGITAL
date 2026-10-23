@@ -3,10 +3,17 @@ import {
   guardarSemanaLaboral,
 } from "@/app/admin/(protegido)/horarios/actions";
 import {
+  descartarBorradorHorarioTexto,
+  guardarBorradorHorarioTexto,
+  publicarHorarioTexto,
+} from "@/app/admin/(protegido)/horarios/texto-actions";
+import {
   crearExcepcionCalendario,
   eliminarExcepcionCalendario,
 } from "@/app/admin/(protegido)/agenda/actions";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { obtenerConfiguracionPublica } from "@/lib/cms/config-publica";
+import { obtenerBorrador } from "@/lib/cms/revisiones-config";
 
 export const metadata: Metadata = {
   title: "Horarios",
@@ -37,21 +44,29 @@ const DIAS = [
 export default async function HorariosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    borrador?: string;
+    publicado?: string;
+    descartado?: string;
+  }>;
 }) {
-  const { error: errorUrl } = await searchParams;
+  const { error: errorUrl, borrador, publicado, descartado } = await searchParams;
   const supabase = createSupabaseServiceClient();
 
-  const { data: horas } = await supabase
-    .from("business_hours")
-    .select("id, day_of_week, opens_at, closes_at, break_start, break_end")
-    .order("day_of_week");
-
-  const { data: excepciones } = await supabase
-    .from("schedule_exceptions")
-    .select("id, kind, date_from, date_to, reason")
-    .gte("date_to", new Date().toISOString().slice(0, 10))
-    .order("date_from");
+  const [{ data: horas }, { data: excepciones }, config, draft] = await Promise.all([
+    supabase
+      .from("business_hours")
+      .select("id, day_of_week, opens_at, closes_at, break_start, break_end")
+      .order("day_of_week"),
+    supabase
+      .from("schedule_exceptions")
+      .select("id, kind, date_from, date_to, reason")
+      .gte("date_to", new Date().toISOString().slice(0, 10))
+      .order("date_from"),
+    obtenerConfiguracionPublica(),
+    obtenerBorrador<{ hours_note: string }>("horarios"),
+  ]);
 
   const porDia = new Map<number, FilaHorario | undefined>();
   for (const dia of DIAS) {
@@ -69,6 +84,21 @@ export default async function HorariosPage({
         {errorUrl ? (
           <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {decodeURIComponent(errorUrl)}
+          </p>
+        ) : null}
+        {borrador ? (
+          <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Borrador guardado. El texto visible no cambia hasta que publiques.
+          </p>
+        ) : null}
+        {publicado ? (
+          <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            Texto publicado. El sitio se actualizó sin rebuild.
+          </p>
+        ) : null}
+        {descartado ? (
+          <p role="status" className="mt-4 rounded-xl border border-sand-200 bg-sand-50 px-4 py-3 text-sm text-ink-700">
+            Borrador descartado.
           </p>
         ) : null}
 
@@ -138,6 +168,69 @@ export default async function HorariosPage({
             Guardar horario semanal
           </button>
         </form>
+
+        <section className="mt-8 rounded-2xl border border-sand-200 bg-white p-6 shadow-xs">
+          <h2 className="font-display text-xl font-bold text-ink-900">
+            Texto visible para pacientes
+          </h2>
+          <p className="mt-2 text-sm text-ink-500">
+            Se muestra en la página pública y el footer. La tabla de arriba define la
+            <span className="font-medium text-ink-700"> disponibilidad real para reservar</span>{" "}
+            (es la que usa el motor de citas); este texto es solo informativo y no altera la agenda.
+          </p>
+
+          {draft ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">
+                Hay un borrador sin publicar
+                <span className="ml-2 font-normal">
+                  ({new Date(draft.creadoEn).toLocaleString("es-PE", { timeZone: "America/Lima" })})
+                </span>
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <form action={publicarHorarioTexto}>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
+                  >
+                    Publicar borrador
+                  </button>
+                </form>
+                <form action={descartarBorradorHorarioTexto}>
+                  <button
+                    type="submit"
+                    className="rounded-xl border border-sand-300 bg-white px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-sand-50"
+                  >
+                    Descartar
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : null}
+
+          <form action={guardarBorradorHorarioTexto} className="mt-4">
+            <label htmlFor="hours_note" className="mb-1 block text-sm font-semibold text-ink-900">
+              Horario comercial visible (opcional)
+            </label>
+            <textarea
+              id="hours_note"
+              name="hours_note"
+              rows={2}
+              maxLength={400}
+              defaultValue={draft?.valores.hours_note ?? config.hoursNote}
+              placeholder="Ej: Atención de lunes a sábado de 8:00 a. m. a 8:00 p. m."
+              className="w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-sm"
+            />
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="submit"
+                className="rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-800"
+              >
+                Guardar borrador
+              </button>
+            </div>
+          </form>
+        </section>
 
         <section className="mt-8">
           <h2 className="font-display text-xl font-bold text-ink-900">

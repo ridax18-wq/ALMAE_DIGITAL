@@ -1,6 +1,7 @@
 import { InfoIcon } from "@/components/icons";
 import { Container } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
+import { obtenerConfiguracionPublica } from "@/lib/cms/config-publica";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 type PendingPageProps = {
@@ -11,14 +12,17 @@ type PendingPageProps = {
   backHref?: string;
 };
 
-export function PendingPage({
+export async function PendingPage({
   title,
   phase,
   message,
   backLabel = "Volver al inicio",
   backHref = "/",
 }: PendingPageProps) {
-  const whatsappUrl = buildWhatsAppUrl("cita");
+  const config = await obtenerConfiguracionPublica();
+  const whatsappUrl = buildWhatsAppUrl("cita", undefined, {
+    numero: config.whatsapp || undefined,
+  });
 
   return (
     <main className="bg-sand-50 py-16 sm:py-24">

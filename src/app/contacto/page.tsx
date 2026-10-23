@@ -6,6 +6,7 @@ import { scheduleNote } from "@/lib/catalog";
 import { buildWhatsAppUrl, type WhatsAppIntent } from "@/lib/whatsapp";
 import { site } from "@/lib/site";
 import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
+import { obtenerConfiguracionPublica, urlBusquedaMaps } from "@/lib/cms/config-publica";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +25,19 @@ const ACCIONES: { intent: WhatsAppIntent; label: string; detail?: string }[] = [
 ];
 
 export default async function ContactoPage() {
-  const whatsappUrl = buildWhatsAppUrl("general");
+  const [intro, config] = await Promise.all([
+    obtenerCuerpoPublicado("contacto_intro"),
+    obtenerConfiguracionPublica(),
+  ]);
+
+  const override = {
+    numero: config.whatsapp || undefined,
+    mensaje: config.whatsappMensaje || undefined,
+  };
+  const whatsappUrl = buildWhatsAppUrl("general", undefined, override);
   const numeroConfigurado = whatsappUrl !== null;
-  const intro = await obtenerCuerpoPublicado("contacto_intro");
+  const direccion = config.direccionCompleta || site.address;
+  const horario = config.hoursNote || scheduleNote;
 
   return (
     <>
@@ -53,7 +64,9 @@ export default async function ContactoPage() {
             </h2>
             <ul className="mt-5 grid gap-3 sm:grid-cols-2">
               {ACCIONES.map((accion) => {
-                const url = buildWhatsAppUrl(accion.intent, accion.detail);
+                const url = buildWhatsAppUrl(accion.intent, accion.detail, {
+                  numero: override.numero,
+                });
                 if (!url) return null;
                 return (
                   <li key={accion.label}>
@@ -85,7 +98,7 @@ export default async function ContactoPage() {
                 Horario de atención
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-700">
-                {scheduleNote}
+                {horario}
               </p>
             </div>
             <div className="rounded-2xl border border-sand-200 bg-white p-6 shadow-xs">
@@ -94,8 +107,21 @@ export default async function ContactoPage() {
                 Ubicación
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-700">
-                {site.address}
+                {direccion}
+                {config.direccionReferencia ? (
+                  <span className="mt-1 block text-ink-500">
+                    {config.direccionReferencia}
+                  </span>
+                ) : null}
               </p>
+              <a
+                href={urlBusquedaMaps(direccion)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex rounded-xl border border-sand-300 px-4 py-2 text-sm font-semibold text-ink-700 transition-colors hover:bg-sand-50"
+              >
+                Buscar en Google Maps
+              </a>
             </div>
           </div>
         </Container>

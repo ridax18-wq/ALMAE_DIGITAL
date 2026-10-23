@@ -1,8 +1,13 @@
 import { WhatsAppIcon } from "@/components/icons";
+import { obtenerConfiguracionPublica } from "@/lib/cms/config-publica";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
-export function WhatsAppButton() {
-  const url = buildWhatsAppUrl("general");
+export async function WhatsAppButton() {
+  const config = await obtenerConfiguracionPublica();
+  const url = buildWhatsAppUrl("general", undefined, {
+    numero: config.whatsapp || undefined,
+    mensaje: config.whatsappMensaje || undefined,
+  });
   const href = url ?? "/contacto";
   const isExternal = url !== null;
 

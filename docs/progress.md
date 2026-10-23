@@ -446,3 +446,18 @@ El propietario aport√≥ tarjetas de servicios **con precios reales** (`Imagenes/S
 - URL local: `http://localhost:3001/admin/testimonios`; p˙blico en home `/#testimonios`.
 - Pendiente B6: cierre del CMS (ubicaciÛn/contacto como bloques si se requiere, restauraciÛn de revisiones, banner de datos de demo en dev, checklist final).
 - **Sin commit** (pendiente de autorizaciÛn para B5).
+
+## Hito 3.2-B5.1 - ubicacion, contacto y horarios publicables
+
+- Commit B5: **`1f4859b`** "feat(almae): testimonios y consentimiento CMS B5" (sin push).
+- Migracion `0020_config_ubicacion_contacto.sql` (aplicada localmente): columnas en `business_settings` (`address_street/district/province/department/reference`, `maps_url`, `local_intro`, `phone`, `email`, `instagram_url`, `facebook_url`, `whatsapp_message`, `hours_note`), semilla de direccion Altos del Ramac 250 y CHECK de `content_revisions` ampliado con `'business_settings'`.
+- `src/lib/cms/config-publica.ts`: fuente unica de lectura (`obtenerConfiguracionPublica` con cache) + utilidades puras `direccionCompleta`, `esUrlMapsSegura` (solo https con allowlist Google), `urlBusquedaMaps`, `urlComoLlegar`, `urlEmbedMaps` (embebe busqueda por texto, nunca coordenadas inventadas).
+- `src/lib/cms/revisiones-config.ts`: borradores por seccion (`ubicacion`/`contacto`/`horarios`) en `content_revisions` (RLS solo admin: el anon no ve borradores); `guardarBorrador`, `publicarBorrador` (aplica a `business_settings` + registra revision publicada), `descartarBorrador`.
+- Admin nuevos: `/admin/ubicacion` (direccion, referencia, mapa, intro; rechaza URLs de Maps no seguras; previsualizacion con boton Como llegar/Buscar en Maps), `/admin/contacto` (WhatsApp 8-15 digitos, telefono, email Zod, redes https, mensaje predeterminado), `/admin/horarios` (texto visible `hours_note` con borrador/publicar, aclarando que la tabla semanal es la disponibilidad real del motor de reservas); enlaces en el nav del panel. `/admin/configuracion` dejo de editar WhatsApp y direccion (solo enlaces a las paginas nuevas) para evitar fuentes en conflicto.
+- Publico: home usa direccion/telefono/horario de config con iframe de Google Maps solo si hay `maps_url` valida (si no, placeholder + boton de busqueda, sin pin inventado); Footer lee direccion, horario, telefono, correo, redes y WhatsApp desde config (fallback a `site`/`scheduleNote`); `/contacto` igual; `WhatsAppButton`, `PendingPage`, home, `/promociones` y `/contacto` pasan numero/mensaje de config a `buildWhatsAppUrl`.
+- Correcciones: schemas exportados desde archivos `"use server"` rompian `next build` (se dejaron de exportar); `obtenerBorrador` leia `valores` de la fila en vez de `snapshot.valores`; borrado por `like("snapshot::text")` no funcionaba en PostgREST (ahora por IDs); selectores de Playwright filtraban por texto fuera de los `form`.
+- Pruebas reales: `tests/cms-config-b51.test.ts` **7/7** (utilidades puras, anon sin borradores, borrador no publica solo, publicar aplica); Playwright B5.1 **4/4** (anon rechazado en las 3 rutas, contacto con borrador->publicar visible en footer, Maps invalido rechazado, hours_note borrador->publicar) + regresion completa **33/33**; Vitest total **77/77**; typecheck/lint/build OK.
+- Hallazgo fuera de alcance: `src/lib/catalog.ts` esta commiteado con mojibake UTF-8 doble (ej. "c√≥moda") desde fases anteriores; unico archivo afectado en el repo. Correccion pendiente de autorizacion.
+- URLs locales: `http://localhost:3001/admin/ubicacion`, `/admin/contacto`, `/admin/horarios`.
+- Pendiente B6: cierre del CMS (restauracion de revisiones, banner de datos de demo en dev, checklist final).
+- **Sin commit** (pendiente de autorizacion para B5.1).

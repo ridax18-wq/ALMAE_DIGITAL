@@ -3,8 +3,9 @@ import Image from "next/image";
 import { MapPinIcon, ClockIcon, WhatsAppIcon } from "@/components/icons";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { scheduleNote } from "@/lib/catalog";
-import { getSocialLinks, site } from "@/lib/site";
+import { site } from "@/lib/site";
 import { obtenerCuerpoPublicado } from "@/lib/cms/contenido-publico";
+import { obtenerConfiguracionPublica } from "@/lib/cms/config-publica";
 
 const NAV = [
   { href: "/servicios", label: "Servicios" },
@@ -20,9 +21,31 @@ const LEGAL = [
   { href: "/privacidad", label: "Privacidad" },
 ];
 
+function formatearWhatsapp(numero: string): string {
+  const digitos = numero.replace(/[^\d]/g, "");
+  if (digitos.length === 11 && digitos.startsWith("51")) {
+    const local = digitos.slice(2);
+    return `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+  }
+  return digitos;
+}
+
 export async function Footer() {
-  const whatsappUrl = buildWhatsAppUrl("general");
-  const intro = await obtenerCuerpoPublicado("footer_intro");
+  const [intro, config] = await Promise.all([
+    obtenerCuerpoPublicado("footer_intro"),
+    obtenerConfiguracionPublica(),
+  ]);
+
+  const direccion = config.direccionCompleta || site.address;
+  const horario = config.hoursNote || scheduleNote;
+  const whatsappUrl = buildWhatsAppUrl("general", undefined, {
+    numero: config.whatsapp || undefined,
+    mensaje: config.whatsappMensaje || undefined,
+  });
+  const redes = [
+    config.instagramUrl ? { label: "Instagram", url: config.instagramUrl } : null,
+    config.facebookUrl ? { label: "Facebook", url: config.facebookUrl } : null,
+  ].filter((r): r is { label: string; url: string } => r !== null);
 
   return (
     <footer className="border-t border-brand-900 bg-brand-900 text-brand-100">
@@ -38,17 +61,17 @@ export async function Footer() {
           <p className="mt-3 max-w-xs text-sm leading-relaxed">
             {intro.text}
           </p>
-          {getSocialLinks().length > 0 ? (
+          {redes.length > 0 ? (
             <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
-              {getSocialLinks().map((social) => (
-                <li key={social.url}>
+              {redes.map((red) => (
+                <li key={red.url}>
                   <a
-                    href={social.url}
+                    href={red.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded font-semibold text-white hover:text-brand-200"
                   >
-                    {social.label} ↗
+                    {red.label} ↗
                   </a>
                 </li>
               ))}
@@ -90,12 +113,20 @@ export async function Footer() {
           <ul className="space-y-3 text-sm">
             <li className="flex items-start gap-2">
               <MapPinIcon className="mt-0.5 size-4 shrink-0 text-brand-300" />
-              <span>{site.address}</span>
+              <span>{direccion}</span>
             </li>
             <li className="flex items-start gap-2">
               <ClockIcon className="mt-0.5 size-4 shrink-0 text-brand-300" />
-              <span>{scheduleNote}</span>
+              <span>{horario}</span>
             </li>
+            {config.telefono ? <li>{config.telefono}</li> : null}
+            {config.email ? (
+              <li>
+                <a href={`mailto:${config.email}`} className="rounded hover:text-white">
+                  {config.email}
+                </a>
+              </li>
+            ) : null}
             <li>
               <a
                 href={whatsappUrl ?? "#"}
@@ -104,7 +135,8 @@ export async function Footer() {
                 className="inline-flex items-center gap-2 rounded-lg font-semibold text-white hover:text-brand-200"
               >
                 <WhatsAppIcon className="size-5 text-whatsapp" />
-                919 608 174 — WhatsApp
+                {config.whatsapp ? `${formatearWhatsapp(config.whatsapp)} — ` : ""}
+                WhatsApp
               </a>
             </li>
           </ul>

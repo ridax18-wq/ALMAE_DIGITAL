@@ -7,6 +7,7 @@ import { urlPublicaMedia } from "@/lib/cms/media";
 import { formatPen } from "@/lib/format";
 import { esPromocionVigente } from "@/lib/services/promociones-publicas";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { obtenerConfiguracionPublica } from "@/lib/cms/config-publica";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 export const metadata: Metadata = {
@@ -44,7 +45,10 @@ function fechaLima(iso: string): string {
 }
 
 export default async function PromocionesPage() {
-  const whatsappUrl = buildWhatsAppUrl("paquetes");
+  const config = await obtenerConfiguracionPublica();
+  const whatsappUrl = buildWhatsAppUrl("paquetes", undefined, {
+    numero: config.whatsapp || undefined,
+  });
   const hoy = hoyLima();
   const supabase = createSupabaseServiceClient();
 
