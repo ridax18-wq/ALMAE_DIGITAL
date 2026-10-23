@@ -15,11 +15,15 @@ import {
   horaDeMinutos,
   horaLimaDeIso,
   huecosLibres,
+  mensajeConfirmacionCita,
   minutosDeDuracion,
   minutosDeHora,
   weekdayDeFechaLima,
   type FranjaLaboral,
 } from "@/lib/services/agenda-vista";
+import { obtenerConfiguracionPublica } from "@/lib/cms/config-publica";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import { HorasDisponibles } from "@/app/admin/(protegido)/agenda/HorasDisponibles";
 
 export const metadata: Metadata = {
   title: "Agenda",
@@ -112,6 +116,8 @@ export default async function AgendaPage({
       (v.service as unknown as { active: boolean; location: string }).active &&
       (v.service as unknown as { active: boolean; location: string }).location === "consultorio",
   );
+
+  const cfg = await obtenerConfiguracionPublica();
 
   const citasVisibles = (citas ?? []).filter(
     (c) => !esRetencionExpirada(c.status, c.hold_expires_at, ahoraIso),
@@ -283,6 +289,31 @@ export default async function AgendaPage({
                               {(cita.service as unknown as { name: string } | null)?.name}
                             </span>
                             <span className="mt-0.5 block text-xs text-ink-500">Código: {cita.public_code}</span>
+                            {cita.status === "CONFIRMED" && cita.origin !== "WEB"
+                              ? (() => {
+                                  const enlace = buildWhatsAppUrl("general", undefined, {
+                                    numero: cfg.whatsapp,
+                                    mensaje: mensajeConfirmacionCita({
+                                      servicio:
+                                        (cita.service as unknown as { name: string } | null)?.name ?? "",
+                                      fechaLima: formatFechaLima(`${fechaLimaDeIso(String(cita.starts_at))}T12:00:00`),
+                                      horaLima: horaLimaDeIso(String(cita.starts_at)),
+                                      codigo: cita.public_code,
+                                      direccion: cfg.direccionCompleta,
+                                    }),
+                                  });
+                                  return enlace ? (
+                                    <a
+                                      href={enlace}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-1 inline-block rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-[11px] font-semibold text-green-900 hover:bg-green-100"
+                                    >
+                                      Confirmar por WhatsApp
+                                    </a>
+                                  ) : null;
+                                })()
+                              : null}
                           </Link>
                         </li>
                       );
@@ -360,7 +391,7 @@ function FormPresencial({
 }) {
   return (
     <form action={registrarPresencial} className="mt-3 flex flex-col gap-2.5">
-      <select name="variant_id" aria-label="Servicio y duración" required className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm">
+      <select id="adm-variant" name="variant_id" aria-label="Servicio y duración" required className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm">
         {variantes.map((v) => {
           const servicio = v.service as unknown as { name: string };
           return (
@@ -371,11 +402,17 @@ function FormPresencial({
         })}
       </select>
       <div className="flex gap-2">
-        <input name="fecha" type="date" required defaultValue={fechaHoy} aria-label="Fecha" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm" />
-        <input name="hora" type="time" required aria-label="Hora" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm" />
+        <input id="adm-fecha" name="fecha" type="date" required defaultValue={fechaHoy} aria-label="Fecha" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm" />
+        <input id="adm-hora" name="hora" type="time" required aria-label="Hora" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm" />
       </div>
+      <HorasDisponibles />
+      <select name="origen" aria-label="Origen de la reserva" defaultValue="IN_PERSON" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm">
+        <option value="IN_PERSON">Presencial</option>
+        <option value="WHATSAPP">WhatsApp</option>
+        <option value="PHONE">Teléfono</option>
+      </select>
       <input name="nombre" required minLength={2} maxLength={80} placeholder="Nombre completo" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
-      <input name="telefono" required pattern="9\d{8}" maxLength={9} inputMode="numeric" placeholder="Celular 9XXXXXXXX" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
+      <input name="telefono" required pattern="9\d{8}" maxLength={9} inputMode="numeric" placeholder="Celular 9XXXXXXXX (si ya es paciente, se reutiliza)" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
       <input name="email" type="email" placeholder="Correo (opcional)" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
       <textarea name="notas" rows={2} maxLength={300} placeholder="Observaciones administrativas" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
       <label className="flex items-start gap-2 text-xs text-ink-700">

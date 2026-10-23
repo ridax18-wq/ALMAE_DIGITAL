@@ -10,8 +10,61 @@ import {
   retirarBloqueo,
   crearReservaPresencial,
 } from "@/lib/services/admin-reservas";
+import { disponibilidadDeDia } from "@/lib/services/disponibilidad";
+import { horaLimaDeIso } from "@/lib/services/agenda-vista";
+
+export type ResultadoHorariosAdmin =
+  | { ok: true; horas: string[] }
+  | { ok: false; error: string };
+
+export async function consultarHorariosAdmin(datos: FormData): Promise<ResultadoHorariosAdmin> {
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: false, error: "Sesión requerida" };
+
+  const parsed = z
+    .object({
+      variant_id: z.uuid(),
+      fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+    })
+    .safeParse({
+      variant_id: datos.get("variant_id"),
+      fecha: datos.get("fecha"),
+    });
+  if (!parsed.success) return { ok: false, error: "Datos inválidos" };
+
+  const service = createSupabaseServiceClient();
+  const { data: variante } = await service
+    .from("service_variants")
+    .select("service_id")
+    .eq("id", parsed.data.variant_id)
+    .maybeSingle();
+  if (!variante) return { ok: false, error: "Servicio no disponible" };
+
+  const { data: servicio } = await service
+    .from("services")
+    .select("slug")
+    .eq("id", variante.service_id)
+    .maybeSingle();
+  if (!servicio) return { ok: false, error: "Servicio no disponible" };
+
+  const resultado = await disponibilidadDeDia(servicio.slug, parsed.data.variant_id, parsed.data.fecha);
+  if (!resultado.ok || !resultado.slots) {
+    return { ok: false, error: resultado.error ?? "No se pudo consultar la disponibilidad" };
+  }
+
+  return {
+    ok: true,
+    horas: resultado.slots.map((s) => horaLimaDeIso(s.inicioUtc)),
+  };
+}
 
 export async function bloquearHorario(datos: FormData): Promise<void> {
+  const fechaCruda = datos.get("fecha");
+  const fechaQuery =
+    typeof fechaCruda === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaCruda)
+      ? `&fecha=${fechaCruda}`
+      : "";
   const parsed = z
     .object({
       fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
@@ -21,7 +74,7 @@ export async function bloquearHorario(datos: FormData): Promise<void> {
       motivo: z.string().max(120).optional(),
     })
     .safeParse({
-      fecha: datos.get("fecha"),
+      fecha: fechaCruda,
       hora_inicio: datos.get("hora_inicio"),
       hora_fin: datos.get("hora_fin"),
       tipo: datos.get("tipo"),
@@ -29,7 +82,7 @@ export async function bloquearHorario(datos: FormData): Promise<void> {
     });
 
   if (!parsed.success) {
-    redirect(`/admin/agenda?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "datos inválidos")}`);
+    redirect(`/admin/agenda?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "datos inválidos")}${fechaQuery}`);
   }
 
   const resultado = await crearBloqueo({
@@ -40,12 +93,12 @@ export async function bloquearHorario(datos: FormData): Promise<void> {
   });
 
   if (!resultado.ok) {
-    redirect(`/admin/agenda?error=${encodeURIComponent(resultado.error ?? "error")}`);
+    redirect(`/admin/agenda?fecha=${parsed.data.fecha}&error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
   revalidatePath("/admin/agenda");
   revalidatePath("/reservar");
-  redirect("/admin/agenda");
+  redirect(`/admin/agenda?fecha=${parsed.data.fecha}`);
 }
 
 export async function retirarBloqueoAdmin(datos: FormData): Promise<void> {
@@ -67,6 +120,11 @@ export async function retirarBloqueoAdmin(datos: FormData): Promise<void> {
 }
 
 export async function registrarPresencial(datos: FormData): Promise<void> {
+  const fechaCruda = datos.get("fecha");
+  const fechaQuery =
+    typeof fechaCruda === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaCruda)
+      ? `&fecha=${fechaCruda}`
+      : "";
   const parsed = z
     .object({
       variant_id: z.uuid(),
@@ -78,21 +136,23 @@ export async function registrarPresencial(datos: FormData): Promise<void> {
       notas: z.string().max(300).optional(),
       exencion: z.string().optional(),
       motivo_exencion: z.string().max(120).optional(),
+      origen: z.enum(["IN_PERSON", "WHATSAPP", "PHONE"]).default("IN_PERSON"),
     })
     .safeParse({
       variant_id: datos.get("variant_id"),
-      fecha: datos.get("fecha"),
+      fecha: fechaCruda,
       hora: datos.get("hora"),
       nombre: datos.get("nombre"),
       telefono: datos.get("telefono"),
       email: datos.get("email") ?? "",
-      notas: datos.get("notas"),
-      exencion: datos.get("exencion"),
-      motivo_exencion: datos.get("motivo_exencion"),
+      notas: datos.get("notas") ?? "",
+      exencion: datos.get("exencion") ?? undefined,
+      motivo_exencion: datos.get("motivo_exencion") ?? "",
+      origen: datos.get("origen") ?? "IN_PERSON",
     });
 
   if (!parsed.success) {
-    redirect(`/admin/agenda?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "datos inválidos")}`);
+    redirect(`/admin/agenda?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "datos inválidos")}${fechaQuery}`);
   }
 
   const service = createSupabaseServiceClient();
@@ -104,7 +164,7 @@ export async function registrarPresencial(datos: FormData): Promise<void> {
     .maybeSingle();
 
   if (!variante) {
-    redirect("/admin/agenda?error=La%20duraci%C3%B3n%20seleccionada%20no%20existe");
+    redirect(`/admin/agenda?fecha=${parsed.data.fecha}&error=La%20duraci%C3%B3n%20seleccionada%20no%20existe`);
   }
 
   const { data: servicio } = await service
@@ -114,7 +174,7 @@ export async function registrarPresencial(datos: FormData): Promise<void> {
     .maybeSingle();
 
   if (!servicio || !servicio.active || servicio.location !== "consultorio") {
-    redirect("/admin/agenda?error=El%20servicio%20no%20est%C3%A1%20disponible");
+    redirect(`/admin/agenda?fecha=${parsed.data.fecha}&error=El%20servicio%20no%20est%C3%A1%20disponible`);
   }
 
   const resultado = await crearReservaPresencial({
@@ -128,15 +188,16 @@ export async function registrarPresencial(datos: FormData): Promise<void> {
     notas: parsed.data.notas ?? "",
     exencionAdelanto: parsed.data.exencion === "on",
     motivoExencion: parsed.data.motivo_exencion ?? "",
+    origen: parsed.data.origen,
   });
 
   if (!resultado.ok) {
-    redirect(`/admin/agenda?error=${encodeURIComponent(resultado.error ?? "error")}`);
+    redirect(`/admin/agenda?fecha=${parsed.data.fecha}&error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
   revalidatePath("/admin/agenda");
   revalidatePath("/reservar");
-  redirect(`/admin/agenda?presencial=ok&codigo=${encodeURIComponent(String(resultado.detalle?.codigoPublico ?? ""))}`);
+  redirect(`/admin/agenda?fecha=${parsed.data.fecha}&presencial=ok&codigo=${encodeURIComponent(String(resultado.detalle?.codigoPublico ?? ""))}`);
 }
 
 export async function crearExcepcionCalendario(datos: FormData): Promise<void> {

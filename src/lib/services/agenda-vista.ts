@@ -109,10 +109,35 @@ const ETIQUETAS_ORIGEN: Record<string, string> = {
   WEB: "Web",
   IN_PERSON: "Presencial",
   ADMIN: "Administración",
+  WHATSAPP: "WhatsApp",
+  PHONE: "Teléfono",
 };
 
 export function etiquetaOrigen(origin: string): string {
   return ETIQUETAS_ORIGEN[origin] ?? origin;
+}
+
+/** Orígenes de citas que el administrador registra manualmente. */
+export const ORIGENES_ADMIN = ["IN_PERSON", "WHATSAPP", "PHONE"] as const;
+export type OrigenAdmin = (typeof ORIGENES_ADMIN)[number];
+
+/**
+ * Mensaje de confirmación para enviar por WhatsApp desde el administrador.
+ * Solo datos de la cita; sin información clínica.
+ */
+export function mensajeConfirmacionCita(datos: {
+  servicio: string;
+  fechaLima: string;
+  horaLima: string;
+  codigo: string;
+  direccion: string;
+}): string {
+  const direccion = datos.direccion.trim();
+  return (
+    `Cita confirmada: ${datos.servicio} el ${datos.fechaLima} a las ${datos.horaLima}` +
+    (direccion ? ` en ${direccion}` : "") +
+    `. Código ${datos.codigo}.`
+  );
 }
 
 /** Día de la semana JS (0=domingo) de una fecha "YYYY-MM-DD" Lima. */

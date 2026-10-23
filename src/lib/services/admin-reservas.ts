@@ -308,6 +308,7 @@ export type EntradaPresencial = {
   notas: string;
   exencionAdelanto: boolean;
   motivoExencion: string;
+  origen?: "IN_PERSON" | "WHATSAPP" | "PHONE";
 };
 
 export async function crearReservaPresencial(
@@ -351,6 +352,10 @@ export async function crearReservaPresencial(
       };
     }
     return { ok: false, error: errorAmigable(respuesta.error) };
+  }
+
+  if (respuesta.ok && respuesta.id && entrada.origen && entrada.origen !== "IN_PERSON") {
+    await supabase.from("bookings").update({ origin: entrada.origen }).eq("id", respuesta.id);
   }
 
   return {

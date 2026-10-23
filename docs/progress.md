@@ -492,3 +492,18 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - URL local: `http://localhost:3001/admin/agenda` (requiere sesion owner).
 - Sin migraciones, sin cambios en retencion de 15 min, adelantos, confirmaciones ni precios historicos.
 - **Sin commit** (pendiente de autorizacion para 3.3-A).
+
+## Hito 3.3-B - reservas presenciales y WhatsApp
+
+- Commits previos sin push: 3.3-A `3750ba6`.
+- Migracion local `0021_origen_admin_whatsapp_telefono.sql`: amplia el enum `booking_origin` con `WHATSAPP` y `PHONE` (aplicada solo en el stack local).
+- Formulario "Nueva reserva presencial" en `/admin/agenda`: servicio y duracion, fecha, hora, origen (Presencial / WhatsApp / Telefono), paciente (nombre, celular, correo opcional), observaciones y exencion de adelanto justificada. Boton "Ver horas disponibles" que consulta horarios libres server-side (`consultarHorariosAdmin`). La reserva se crea con `crear_reserva_presencial` (conflictos validados en BD) y queda CONFIRMED.
+- Tras crear una cita con origen distinto de Presencial se muestra el enlace "Confirmar por WhatsApp" (wa.me) con fecha, hora, direccion y codigo, mediante `mensajeConfirmacionCita` en `agenda-vista.ts`.
+- Bloqueos: el formulario "Bloquear horario" conserva la fecha seleccionada tras guardar o fallar.
+- Correcciones: el checkbox de exencion no marcado llegaba como `null` y Zod rechazaba el formulario (ahora `?? undefined`); los redirects de `registrarPresencial` y `bloquearHorario` conservan `fecha` para que la cita creada sea visible en el dia correcto.
+- Correccion de aislamiento Playwright: el `beforeAll` global que llamaba a `limpiarAgendaLocal()` (borrado total de bookings, bloqueos y pacientes) se re-ejecuta cuando Playwright reinicia el worker tras un test fallido. Eso eliminaba la reserva de otros tests y provocaba fallos en cascada. Ahora `e2e/agenda-33b.spec.ts` no usa borrados globales: `beforeEach` limpia solo pacientes de prueba (celulares 9555555xx) y sus reservas, mas bloqueos con motivo "Bloqueo prueba 33B" dentro de los tres dias de prueba. Cada test crea sus propios datos en dias laborables distintos.
+- Seguridad de limpieza: `asegurarBaseLocal()` aborta si `NEXT_PUBLIC_SUPABASE_URL` no es 127.0.0.1 o localhost. No se modifico `limpiarAgendaLocal()` usada por otros specs.
+- Pruebas: `tests/agenda-33b.test.ts` **5/5** PASS; Playwright `e2e/agenda-33b.spec.ts` **4/4** PASS; regresion relacionada (agenda-33a, reservas, admin-panel, 33b) **12/12** PASS; Vitest total **102/102** PASS; lint y typecheck PASS.
+- No ejecutadas: suite e2e completa (43) tras los ultimos cambios; build de produccion en esta sesion de cierre (el ultimo build es posterior a los cambios de redirects).
+- Sin push, sin deploy, sin cambios en Supabase remoto, sin cambios en el motor de reservas ni en la retencion web de 15 minutos. Pagos web no habilitados.
+- Pendientes 3.3-C: gestion de bloqueos desde la UI del calendario y los demas puntos de su alcance (no iniciado).
