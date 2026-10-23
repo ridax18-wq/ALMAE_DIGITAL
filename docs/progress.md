@@ -409,43 +409,43 @@ El propietario aportÃ³ tarjetas de servicios **con precios reales** (`Imagenes/S
 - Pendiente B3: bucket `almae-media` (Storage) + galerÃ­a `/admin/multimedia` (subida server-side, alt-text, uso, eliminaciÃ³n).
 - **Sin commit** (pendiente de autorizaciÃ³n para B2).
 
-## Hito 3.2-B3 — biblioteca de imágenes y multimedia
+## Hito 3.2-B3 â€” biblioteca de imÃ¡genes y multimedia
 
 - Commit B2: **`72dbb22`** "feat(almae): editor CMS de textos y secciones B2".
-- Migración `0018_storage_almae_media.sql` (aplicada localmente): bucket **`almae-media`** público (lectura anónima solo de imágenes comerciales subidas por el owner; sin datos clínicos), límite 5 MB, tipos JPG/PNG/WebP; políticas `storage.objects`: escritura/borrado solo `es_administrador()`.
-- `/admin/multimedia` (enlace en el nav del panel): biblioteca con miniaturas, subida server-side, texto alternativo inline, indicador "En uso/Sin uso" (content_blocks, promotions, testimonials) y borrado con protección si la imagen está en uso.
-- Validación en servidor (`src/lib/cms/media-validacion.ts`): tamaño = 5 MB, MIME permitido, magic bytes JPEG/PNG/WebP, nombre único `comercial-<ts>-<4hex>-<slug>` sin rutas ni puntos; `src/lib/cms/media.ts`: URL pública y consulta de uso.
-- `next.config.ts`: `experimental.serverActions.bodySizeLimit: "6mb"` (por defecto Next limita a 1 MB y rechazaba subidas grandes antes de nuestra validación).
-- Correcciones: `nombreSeguro` eliminaba mal `..` (hoy sin puntos en la base) y colisionaba en el mismo milisegundo (sufijo aleatorio); e2e resiliente a duplicados residuales y limpieza de objetos huérfanos vía API de Storage (SQL directo sobre `storage.objects` está bloqueado).
-- Pruebas reales: `tests/cms-media.test.ts` 6/6 (tamaño, formato, magic bytes, nombre seguro, uso, URL); Playwright multimedia **2/2** (anon rechazado; subida válida, alt, edit, rechazo >5 MB, rechazo .txt, borrado) + regresión completa **23/23**; Vitest total **57/57**; typecheck/lint/build OK.
-- URL local: `http://localhost:3001/admin/multimedia` (requiere sesión owner).
-- Pendiente B4: migrar imágenes de `public/` al bucket y conectar `image_media_id` en bloques/promos (ver `docs/cms-plan.md`).
-- **Sin commit** (pendiente de autorización para B3).
+- MigraciÃ³n `0018_storage_almae_media.sql` (aplicada localmente): bucket **`almae-media`** pÃºblico (lectura anÃ³nima solo de imÃ¡genes comerciales subidas por el owner; sin datos clÃ­nicos), lÃ­mite 5 MB, tipos JPG/PNG/WebP; polÃ­ticas `storage.objects`: escritura/borrado solo `es_administrador()`.
+- `/admin/multimedia` (enlace en el nav del panel): biblioteca con miniaturas, subida server-side, texto alternativo inline, indicador "En uso/Sin uso" (content_blocks, promotions, testimonials) y borrado con protecciÃ³n si la imagen estÃ¡ en uso.
+- ValidaciÃ³n en servidor (`src/lib/cms/media-validacion.ts`): tamaÃ±o = 5 MB, MIME permitido, magic bytes JPEG/PNG/WebP, nombre Ãºnico `comercial-<ts>-<4hex>-<slug>` sin rutas ni puntos; `src/lib/cms/media.ts`: URL pÃºblica y consulta de uso.
+- `next.config.ts`: `experimental.serverActions.bodySizeLimit: "6mb"` (por defecto Next limita a 1 MB y rechazaba subidas grandes antes de nuestra validaciÃ³n).
+- Correcciones: `nombreSeguro` eliminaba mal `..` (hoy sin puntos en la base) y colisionaba en el mismo milisegundo (sufijo aleatorio); e2e resiliente a duplicados residuales y limpieza de objetos huÃ©rfanos vÃ­a API de Storage (SQL directo sobre `storage.objects` estÃ¡ bloqueado).
+- Pruebas reales: `tests/cms-media.test.ts` 6/6 (tamaÃ±o, formato, magic bytes, nombre seguro, uso, URL); Playwright multimedia **2/2** (anon rechazado; subida vÃ¡lida, alt, edit, rechazo >5 MB, rechazo .txt, borrado) + regresiÃ³n completa **23/23**; Vitest total **57/57**; typecheck/lint/build OK.
+- URL local: `http://localhost:3001/admin/multimedia` (requiere sesiÃ³n owner).
+- Pendiente B4: migrar imÃ¡genes de `public/` al bucket y conectar `image_media_id` en bloques/promos (ver `docs/cms-plan.md`).
+- **Sin commit** (pendiente de autorizaciÃ³n para B3).
 
-## Hito 3.2-B4 — gestión de servicios y promociones
+## Hito 3.2-B4 â€” gestiÃ³n de servicios y promociones
 
 - Commit B3: **`0e6d8aa`** "feat(almae): biblioteca multimedia CMS B3" (sin push).
-- Migración `0019_servicios_imagen_catalogo.sql` (aplicada localmente): `services.image_media_id` (FK media_assets, on delete set null), `services.catalog_mode` (`reservable`/`visible`/`consulta`), índice `promotions_publicas_idx`, `media_assets.content_hash` (+índice) y CHECK de promociones reforzado (`value > 0` y percent = 100).
-- Imágenes: script `scripts/migrar-imagenes-b4.mjs` migró las 8 fotos de `public/servicios/` al bucket `almae-media` con dedupe por SHA-256 y enlace a `services.image_media_id` (los slugs reales `terapia-fisica-y-rehabilitacion-*` se enlazaron aparte); copias originales conservadas en `public/`; 8/8 URLs públicas verificadas sin rotura.
-- Servicios (`/admin/servicios`): edición completa existente + imagen principal desde Multimedia, modo catálogo (reservable/solo visible/solo consulta), reordenación ?? con intercambio de orden, y listado con miniatura/estado; `guardarServicio` valida `catalog_mode` e `image_media_id` con Zod. Las reservas online siguen siendo solo consultorio (regla intacta en `catalogo-publico.ts`, ahora condicionada además al modo `reservable`).
-- Público: `obtenerCatalogo` expone `imagen` (bucket) y `modo`; `ServiceCard` y detalle de servicio usan la imagen de BD con fallback al mapa local. Reservas existentes e importes históricos no modificados.
-- Promociones (`/admin/promociones`, enlace en nav): CRUD con código único, tipo fijo/%, servicio asociado, fechas, usos máximos, imagen desde Multimedia, orden, pausar/publicar/eliminar (borrado bloqueado si `used_count > 0`); validación Zod server-side (código, percent = 100, fechas coherentes, valores positivos) + CHECK en BD. Página pública `/promociones` ahora lee `promotions` (active+published+vigente en America/Lima) con tarjetas e imagen; vencidas/no publicadas invisibles (también por RLS).
-- Lógica pura `src/lib/services/promociones-publicas.ts` (`esPromocionVigente`) testeable.
-- Pruebas reales: `tests/cms-b4.test.ts` **9/9** (vigencia, catálogo imagen/modo, creación, RLS anon, pausada invisible, percent > 100 rechazado); Playwright B4 **4/4** (anon rechazado, cambiar imagen+modo, crear/publicar/pausar/vencida + público, precio inválido) + regresión completa **27/27**; Vitest total **66/66**; typecheck/lint/build OK.
-- URLs locales: `http://localhost:3001/admin/servicios`, `http://localhost:3001/admin/promociones`, público `http://localhost:3001/promociones`.
-- Pendiente B5: testimonios con consentimiento y sección en público; B6: cierre/publicación final (ver `docs/cms-plan.md`).
-- **Sin commit** (pendiente de autorización para B4).
+- MigraciÃ³n `0019_servicios_imagen_catalogo.sql` (aplicada localmente): `services.image_media_id` (FK media_assets, on delete set null), `services.catalog_mode` (`reservable`/`visible`/`consulta`), Ã­ndice `promotions_publicas_idx`, `media_assets.content_hash` (+Ã­ndice) y CHECK de promociones reforzado (`value > 0` y percent = 100).
+- ImÃ¡genes: script `scripts/migrar-imagenes-b4.mjs` migrÃ³ las 8 fotos de `public/servicios/` al bucket `almae-media` con dedupe por SHA-256 y enlace a `services.image_media_id` (los slugs reales `terapia-fisica-y-rehabilitacion-*` se enlazaron aparte); copias originales conservadas en `public/`; 8/8 URLs pÃºblicas verificadas sin rotura.
+- Servicios (`/admin/servicios`): ediciÃ³n completa existente + imagen principal desde Multimedia, modo catÃ¡logo (reservable/solo visible/solo consulta), reordenaciÃ³n â†‘â†“ con intercambio de orden, y listado con miniatura/estado; `guardarServicio` valida `catalog_mode` e `image_media_id` con Zod. Las reservas online siguen siendo solo consultorio (regla intacta en `catalogo-publico.ts`, ahora condicionada ademÃ¡s al modo `reservable`).
+- PÃºblico: `obtenerCatalogo` expone `imagen` (bucket) y `modo`; `ServiceCard` y detalle de servicio usan la imagen de BD con fallback al mapa local. Reservas existentes e importes histÃ³ricos no modificados.
+- Promociones (`/admin/promociones`, enlace en nav): CRUD con cÃ³digo Ãºnico, tipo fijo/%, servicio asociado, fechas, usos mÃ¡ximos, imagen desde Multimedia, orden, pausar/publicar/eliminar (borrado bloqueado si `used_count > 0`); validaciÃ³n Zod server-side (cÃ³digo, percent = 100, fechas coherentes, valores positivos) + CHECK en BD. PÃ¡gina pÃºblica `/promociones` ahora lee `promotions` (active+published+vigente en America/Lima) con tarjetas e imagen; vencidas/no publicadas invisibles (tambiÃ©n por RLS).
+- LÃ³gica pura `src/lib/services/promociones-publicas.ts` (`esPromocionVigente`) testeable.
+- Pruebas reales: `tests/cms-b4.test.ts` **9/9** (vigencia, catÃ¡logo imagen/modo, creaciÃ³n, RLS anon, pausada invisible, percent > 100 rechazado); Playwright B4 **4/4** (anon rechazado, cambiar imagen+modo, crear/publicar/pausar/vencida + pÃºblico, precio invÃ¡lido) + regresiÃ³n completa **27/27**; Vitest total **66/66**; typecheck/lint/build OK.
+- URLs locales: `http://localhost:3001/admin/servicios`, `http://localhost:3001/admin/promociones`, pÃºblico `http://localhost:3001/promociones`.
+- Pendiente B5: testimonios con consentimiento y secciÃ³n en pÃºblico; B6: cierre/publicaciÃ³n final (ver `docs/cms-plan.md`).
+- **Sin commit** (pendiente de autorizaciÃ³n para B4).
 
-## Hito 3.2-B5 — testimonios con consentimiento
+## Hito 3.2-B5 â€” testimonios con consentimiento
 
 - Commit B4: **`31f6708`** "feat(almae): gestionar servicios y promociones CMS B4" (sin push).
-- `/admin/testimonios` (enlace en nav): CRUD con nombre, cita (10-500), calificación 1-5 opcional, foto desde Multimedia, casilla de **consentimiento expreso** y estado borrador/publicado; publicar sin consentimiento bloqueado en Zod server-side y por CHECK de BD (`testimonio_publicado_consentido`, `testimonio_consentimiento_fecha`); `consent_at` se registra al consentir/publicar; eliminación libre; auditoría de acciones.
-- Público: `src/lib/cms/testimonios-publicos.ts` (`obtenerTestimonios`, solo `status=published`, que implica consentimiento por RLS + CHECK); sección de testimonios del home ahora muestra tarjetas (cita, nombre, estrellas, foto redonda) cuando hay publicados, y conserva el placeholder de consentimiento cuando no hay ninguno (cumple la regla de no inventar testimonios).
+- `/admin/testimonios` (enlace en nav): CRUD con nombre, cita (10-500), calificaciÃ³n 1-5 opcional, foto desde Multimedia, casilla de **consentimiento expreso** y estado borrador/publicado; publicar sin consentimiento bloqueado en Zod server-side y por CHECK de BD (`testimonio_publicado_consentido`, `testimonio_consentimiento_fecha`); `consent_at` se registra al consentir/publicar; eliminaciÃ³n libre; auditorÃ­a de acciones.
+- PÃºblico: `src/lib/cms/testimonios-publicos.ts` (`obtenerTestimonios`, solo `status=published`, que implica consentimiento por RLS + CHECK); secciÃ³n de testimonios del home ahora muestra tarjetas (cita, nombre, estrellas, foto redonda) cuando hay publicados, y conserva el placeholder de consentimiento cuando no hay ninguno (cumple la regla de no inventar testimonios).
 - Sin cambios en tablas (modelo desde B1); sin tocar reservas ni pagos.
-- Pruebas reales: `tests/cms-testimonios.test.ts` **4/4** (CHECK BD impide publicar sin consent, anon solo ve publicados, `obtenerTestimonios` filtra borradores/sin consent, CHECK de consent_at); Playwright B5 **2/2** (anon rechazado; flujo crear borrador ? publicar bloqueado sin consent ? marcar consent+publicar ? visible en home ? eliminar ? desaparece) + regresión completa **29/29**; Vitest total **70/70**; typecheck/lint/build OK.
-- URL local: `http://localhost:3001/admin/testimonios`; público en home `/#testimonios`.
-- Pendiente B6: cierre del CMS (ubicación/contacto como bloques si se requiere, restauración de revisiones, banner de datos de demo en dev, checklist final).
-- **Sin commit** (pendiente de autorización para B5).
+- Pruebas reales: `tests/cms-testimonios.test.ts` **4/4** (CHECK BD impide publicar sin consent, anon solo ve publicados, `obtenerTestimonios` filtra borradores/sin consent, CHECK de consent_at); Playwright B5 **2/2** (anon rechazado; flujo crear borrador â†’ publicar bloqueado sin consent â†’ marcar consent+publicar â†’ visible en home â†’ eliminar â†’ desaparece) + regresiÃ³n completa **29/29**; Vitest total **70/70**; typecheck/lint/build OK.
+- URL local: `http://localhost:3001/admin/testimonios`; pÃºblico en home `/#testimonios`.
+- Pendiente B6: cierre del CMS (ubicaciÃ³n/contacto como bloques si se requiere, restauraciÃ³n de revisiones, banner de datos de demo en dev, checklist final).
+- **Sin commit** (pendiente de autorizaciÃ³n para B5).
 
 ## Hito 3.2-B5.1 - ubicacion, contacto y horarios publicables
 
@@ -461,3 +461,21 @@ El propietario aportÃ³ tarjetas de servicios **con precios reales** (`Imagenes/S
 - URLs locales: `http://localhost:3001/admin/ubicacion`, `/admin/contacto`, `/admin/horarios`.
 - Pendiente B6: cierre del CMS (restauracion de revisiones, banner de datos de demo en dev, checklist final).
 - **Sin commit** (pendiente de autorizacion para B5.1).
+
+## Hito 3.2-B6 - cierre integral del CMS
+
+- Commits previos sin push: UTF-8 `ad08fe9`, B5.1 `e47b062`.
+- Restauracion de versiones: `src/lib/cms/revisiones-historial.ts` (historial con autor vÃ­a `auth.admin.listUsers`, `compararSnapshots` puro, `restaurarRevision` que aplica el snapshot a `content_blocks` o `business_settings` e inserta NUEVA revision con `restaurado_de`; el historial nunca se borra) + `/admin/revisiones` (ultimas 100, fecha America/Lima, autor, etiqueta) + `/admin/revisiones/[id]` (comparacion anterior/actual por clave, JSON de la version, restaurar con casilla de confirmacion obligatoria tambien server-side) + auditoria `revision.restaurada` + enlace "Versiones" en el nav del panel.
+- Banner de demo: `src/components/layout/DemoBanner.tsx` ("Entorno de prueba ALMAE - Los cambios realizados aqui no afectan la pagina publicada") visible solo si `NODE_ENV !== production` Y la URL de Supabase es local o vacia; nunca en produccion.
+- Bug corregido: `publicarContenidoBloque` llamaba a la RPC `publicar_contenido` con el service client (sin `auth.uid()`); la RPC devolvia `no_autorizado` silenciosamente y las revisiones de bloques no se registraban desde B2 (contenido si se publicaba). Ahora la RPC se ejecuta con la sesion del usuario y se valida `ok === true` antes de continuar.
+- Pruebas reales: `tests/cms-b6.test.ts` **7/7** (comparacion pura, anon 0 revisiones, historial con autor/etiqueta de footer_intro, obtenerRevisionAnterior por BD, restaurar aplica contenido VERSION 1 B6 + status published + genera revision nueva sin borrar historial, publicar tras restaurar); Playwright B6 **3/3** (banner ausente en build de produccion, anon redirigido en /admin/revisiones, publicar dos veces -> comparar -> restaurar -> historial con >= 3 revisiones) + regresion completa **36/36**; Vitest total **84/84**; typecheck/lint/build OK.
+- Verificaciones: borradores invisibles para anon (RLS + e2e), publicacion sin rebuild (e2e B2), restaurar crea revision nueva sin borrar historial (unit + e2e), owner/RLS protegidos (RLS `revisiones_admin` + tests anon), imagenes/enlaces (e2e multimedia + smoke), reservas de 15 minutos intactas (e2e reservas), adelantos/confirmaciones sin cambios (sin tocar esos modulos), precios historicos conservados (sin cambios en catalog.ts y reservas desde `ad08fe9`).
+- URLs locales: `http://localhost:3001/admin/revisiones`, detalle en `/admin/revisiones/[id]`.
+- Documentacion nueva: `docs/GUIA_ADMINISTRACION_CMS.md` (manual del administrador) y `docs/cms-checklist.md` (checklist de cierre del Hito 3.2).
+- Cerrado con autorizacion del propietario; commit local B6 creado en este cierre (sin push, sin deploy).
+
+### Estado de cierre del Hito 3.2 (autorizado por el propietario)
+
+- Hito 3.2-A: **CERRADO**.
+- Hito 3.2-B1 a B6: **CERRADOS**.
+- Hito 3.2 completo: **CERRADO** (solo commit local; sin push, sin deploy, sin migraciones remotas).

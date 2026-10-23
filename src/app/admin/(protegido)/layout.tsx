@@ -28,6 +28,7 @@ const NAVEGACION = [
   { href: "/admin/testimonios", label: "Testimonios" },
   { href: "/admin/ubicacion", label: "Ubicación" },
   { href: "/admin/contacto", label: "Contacto" },
+  { href: "/admin/revisiones", label: "Versiones" },
   { href: "/admin/reportes", label: "Reportes" },
   { href: "/admin/configuracion", label: "Configuración" },
 ];

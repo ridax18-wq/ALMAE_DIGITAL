@@ -65,7 +65,7 @@ export async function guardarBorradorContenido(datos: FormData): Promise<void> {
 }
 
 export async function publicarContenidoBloque(datos: FormData): Promise<void> {
-  const { clave, cuerpo, userId } = await validarSesionYClave(datos);
+  const { supabase, clave, cuerpo, userId } = await validarSesionYClave(datos);
   const esquema = esquemas[clave as ClaveBloque];
 
   const parseo = esquema.safeParse(cuerpo);
@@ -83,11 +83,12 @@ export async function publicarContenidoBloque(datos: FormData): Promise<void> {
 
   if (!fila) destinoError(clave, "no_publicado");
 
-  await admin.rpc("publicar_contenido", {
+  const { data: revision } = await supabase.rpc("publicar_contenido", {
     p_entity_type: "content_block",
     p_entity_id: fila.id,
     p_snapshot: parseo.data,
   });
+  if (!revision || revision.ok !== true) destinoError(clave, "no_revision");
 
   const def = MAPA_BLOQUES.get(clave);
   for (const path of def?.paths ?? []) {
