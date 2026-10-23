@@ -479,3 +479,16 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - Hito 3.2-A: **CERRADO**.
 - Hito 3.2-B1 a B6: **CERRADOS**.
 - Hito 3.2 completo: **CERRADO** (solo commit local; sin push, sin deploy, sin migraciones remotas).
+
+## Hito 3.3-A - calendario administrativo unificado
+
+- Commit previo sin push: B6 `3c78fd8`.
+- `/admin/agenda` mejorado (solo lectura del motor; sin tocar el motor de reservas): vista diaria y semanal con navegacion por periodo (anterior/siguiente), boton "Hoy", selector de fecha, encabezados con fecha America/Lima y franja horaria del dia (`business_hours`), adapt movil.
+- Muestra reservas HELD vigentes, CONFIRMED, COMPLETED, NO_SHOW y CANCELLED (esta ultima apagada/tachada), citas presenciales (origin IN_PERSON), bloqueos administrativos (`schedule_blocks`), huecos disponibles calculados (apertura-cierre menos descanso menos ocupaciones vigentes) y duracion en minutos; retenciones HELD vencidas (`hold_expires_at <= ahora`) excluidas del listado (no cuentan como ocupacion).
+- Colores/leyenda: Confirmada (verde), Pendiente de confirmacion (ambar), Bloqueada (ink), Disponible (brand), Cancelada (sand); badges de estado (ETIQUETAS_ESTADO) y origen (Web/Presencial/Administracion).
+- Detalle de cita: al seleccionar se ve horario, duracion, estado, origen, paciente, servicio y codigo publico, con enlace al detalle `/admin/reservas/[id]`; sin datos clinicos.
+- `src/lib/services/agenda-vista.ts`: logica pura (fecha/hora Lima, duracion, `esRetencionExpirada`, `huecosLibres`, `etiquetaOrigen`, weekday); consultas unificadas a tablas existentes (bookings + schedule_blocks + business_hours) solo del rango visible, en un solo Promise.all; sin tablas nuevas; service client solo en server component protegido.
+- Pruebas reales: `tests/agenda-vista.test.ts` **13/13** (Lima, duracion, retenciones vencidas/vigentes/CONFIRMED, huecos con descanso y ocupaciones, minimo, etiquetas origen); Playwright agenda **3/3** (anon redirigido, diaria con confirmada + HELD vigente + vencida excluida + bloqueo + disponible, semanal 7 dias) + regresion completa **39/39**; Vitest total **97/97**; typecheck/lint/build OK.
+- URL local: `http://localhost:3001/admin/agenda` (requiere sesion owner).
+- Sin migraciones, sin cambios en retencion de 15 min, adelantos, confirmaciones ni precios historicos.
+- **Sin commit** (pendiente de autorizacion para 3.3-A).
