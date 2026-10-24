@@ -6,7 +6,7 @@ const MOTIVO_BLOQUEO = "Bloqueo prueba 33B";
 
 function diasLaborables(): [string, string, string] {
   const dias: string[] = [];
-  for (let i = 1; dias.length < 3 && i < 30; i += 1) {
+  for (let i = 20; dias.length < 3 && i < 30; i += 1) {
     const d = new Date(Date.now() + i * 86_400_000);
     const iso = d.toLocaleDateString("en-CA", { timeZone: "America/Lima" });
     const dow = new Date(`${iso}T12:00:00Z`).getUTCDay();
@@ -98,12 +98,45 @@ test.describe("HITO 3.3-B â€” reservas presenciales y WhatsApp", () => {
     await limpiarDatosDePrueba();
   });
 
+  async function horasLibresDeDia(
+    request: import("@playwright/test").APIRequestContext,
+    dia: string,
+    cantidad: number,
+  ): Promise<string[]> {
+    const { data: variante } = await supabasePruebas()
+      .from("service_variants")
+      .select("id, service:services!inner(slug, active, location)")
+      .eq("services.active", true)
+      .eq("services.location", "consultorio")
+      .limit(1)
+      .single();
+    if (!variante) throw new Error("No hay variante de consultorio");
+    const servicio = variante.service as unknown as { slug: string };
+    const respuesta = await request.get(
+      `/api/disponibilidad?servicio=${servicio.slug}&variante=${variante.id}&fecha=${dia}`,
+    );
+    if (!respuesta.ok()) throw new Error("No hay disponibilidad para el dia de prueba");
+    const json = (await respuesta.json()) as { slots?: { inicioUtc: string }[] };
+    const horas = (json.slots ?? [])
+      .map((s) =>
+        new Date(new Date(s.inicioUtc).getTime() - 5 * 3_600_000).toISOString().slice(11, 16),
+      )
+      .filter((h) => h >= "14:00")
+      .slice(0, cantidad);
+    if (horas.length < cantidad) {
+      throw new Error(
+        `No hay horas libres suficientes: ${JSON.stringify(json.slots ?? [])} -> ${JSON.stringify(horas)}`,
+      );
+    }
+    return horas;
+  }
+
   test("anon no accede al formulario de nuevas citas", async ({ page }) => {
     await page.goto("/admin/agenda");
     await page.waitForURL("**/admin/login**");
   });
 
-  test("crea cita presencial, WhatsApp y teléfono con origen correcto", async ({ page }) => {
+  test("crea cita presencial, WhatsApp y teléfono con origen correcto", async ({ page, request }) => {
     await login(page);
 
     await crearCita(page, DIA_A, "10:00", "IN_PERSON", "Paciente Presencial 33B", "955555551");
@@ -112,14 +145,20 @@ test.describe("HITO 3.3-B â€” reservas presenciales y WhatsApp", () => {
     await expect(filaPresencial.getByText("Presencial", { exact: true })).toBeVisible();
     await expect(filaPresencial).toContainText("Código: ALM-");
 
-    await crearCita(page, DIA_A, "16:00", "WHATSAPP", "Paciente WhatsApp 33B", "955555552");
+    const [horaWa] = await horasLibresDeDia(request, DIA_A, 1);
+    if (!horaWa) throw new Error("No hay horas libres suficientes");
+
+    await crearCita(page, DIA_A, horaWa, "WHATSAPP", "Paciente WhatsApp 33B", "955555552");
     await expect(page.getByRole("status").filter({ hasText: "Reserva presencial registrada" })).toBeVisible();
     const filaWa = page.locator("li").filter({ hasText: "Paciente WhatsApp 33B" });
     await expect(filaWa.getByText("WhatsApp", { exact: true })).toBeVisible();
     const enlaceWa = filaWa.getByRole("link", { name: "Confirmar por WhatsApp", exact: true });
     await expect(enlaceWa).toHaveAttribute("href", /wa\.me/);
 
-    await crearCita(page, DIA_A, "18:00", "PHONE", "Paciente Telefono 33B", "955555553");
+    const [horaTel] = await horasLibresDeDia(request, DIA_A, 1);
+    if (!horaTel) throw new Error("No hay horas libres suficientes");
+
+    await crearCita(page, DIA_A, horaTel, "PHONE", "Paciente Telefono 33B", "955555553");
     await expect(page.getByRole("status").filter({ hasText: "Reserva presencial registrada" })).toBeVisible();
     const filaTel = page.locator("li").filter({ hasText: "Paciente Telefono 33B" });
     await expect(filaTel.getByText("Teléfono", { exact: true })).toBeVisible();

@@ -50,6 +50,14 @@ function errorAmigable(clave: string | undefined): string {
     servicio_no_disponible: "El servicio no está disponible.",
     variante_no_disponible: "La duración seleccionada no está disponible.",
     configuracion_ausente: "Falta la configuración del negocio.",
+    horario_ocupado: "El nuevo horario está ocupado o bloqueado. Elige otro horario disponible.",
+    motivo_requerido: "Indica un motivo para esta operación.",
+    inicio_en_el_pasado: "La nueva fecha no puede ser en el pasado.",
+    estado_no_reprogramable: "Solo se reprograman reservas en estado de retención o confirmadas.",
+    estado_no_cancelable: "Solo se cancelan reservas en estado de retención o confirmadas.",
+    ya_cancelada: "La reserva ya está cancelada.",
+    transicion_invalida: "Ese cambio de estado no está permitido para la reserva.",
+    asistencia_ya_registrada: "La asistencia de esta cita ya fue registrada.",
     interno: "Error interno. Intenta de nuevo.",
   };
   return mapa[clave ?? ""] ?? "Operación rechazada por el sistema.";
@@ -238,63 +246,66 @@ export async function rechazarAdelanto(
   return { ok: true };
 }
 
-export async function completarCita(bookingId: string): Promise<ResultadoOperacion> {
-  return await cambiarEstadoAdmin(bookingId, "COMPLETED");
+export async function completarCita(
+  bookingId: string,
+  motivo = "",
+): Promise<ResultadoOperacion> {
+  return await cambiarAsistenciaAdmin(bookingId, "COMPLETED", motivo);
 }
 
-export async function registrarNoShow(bookingId: string): Promise<ResultadoOperacion> {
-  return await cambiarEstadoAdmin(bookingId, "NO_SHOW");
+export async function registrarNoShow(
+  bookingId: string,
+  motivo = "",
+): Promise<ResultadoOperacion> {
+  return await cambiarAsistenciaAdmin(bookingId, "NO_SHOW", motivo);
 }
 
 export async function cancelarComoAdmin(
   bookingId: string,
   motivo: string,
 ): Promise<ResultadoOperacion> {
-  const resultado = await cambiarEstadoAdmin(bookingId, "CANCELLED");
-  void motivo;
-  return resultado;
-}
+  const { supabase } = await clienteAdmin();
 
-async function cambiarEstadoAdmin(
-  bookingId: string,
-  nuevoEstado: "COMPLETED" | "NO_SHOW" | "CANCELLED",
-): Promise<ResultadoOperacion> {
-  const { supabase, userId } = await clienteAdmin();
-
-  const { error } = await supabase
-    .from("bookings")
-    .update({ status: nuevoEstado })
-    .eq("id", bookingId);
+  const { data, error } = await supabase.rpc("cancelar_reserva_admin", {
+    p_booking_id: bookingId,
+    p_motivo: motivo,
+  });
 
   if (error) {
-    return {
-      ok: false,
-      error: String(error.message).includes("Transición")
-        ? "La transición de estado no está permitida."
-        : "No se pudo cambiar el estado.",
-    };
+    return { ok: false, error: "El sistema rechazó la cancelación." };
   }
 
-  await registrarAuditoriaLocal(supabase, userId, `reserva.${nuevoEstado.toLowerCase()}`, bookingId, nuevoEstado);
+  const respuesta = (data ?? {}) as { ok?: boolean; error?: string };
+  if (!respuesta.ok) {
+    return { ok: false, error: errorAmigable(respuesta.error) };
+  }
 
   return { ok: true };
 }
 
-async function registrarAuditoriaLocal(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  userId: string,
-  action: string,
-  entityId: string,
-  after: unknown,
-): Promise<void> {
-  await supabase.from("audit_logs").insert({
-    actor_user_id: userId,
-    actor_role: "owner",
-    action,
-    entity: "bookings",
-    entity_id: entityId,
-    after: after ?? null,
+async function cambiarAsistenciaAdmin(
+  bookingId: string,
+  estado: "COMPLETED" | "NO_SHOW",
+  motivo: string,
+): Promise<ResultadoOperacion> {
+  const { supabase } = await clienteAdmin();
+
+  const { data, error } = await supabase.rpc("registrar_asistencia_admin", {
+    p_booking_id: bookingId,
+    p_estado: estado,
+    p_motivo: motivo,
   });
+
+  if (error) {
+    return { ok: false, error: "El sistema rechazó el registro de asistencia." };
+  }
+
+  const respuesta = (data ?? {}) as { ok?: boolean; error?: string };
+  if (!respuesta.ok) {
+    return { ok: false, error: errorAmigable(respuesta.error) };
+  }
+
+  return { ok: true };
 }
 
 export type EntradaPresencial = {
@@ -433,79 +444,31 @@ export async function retirarBloqueo(blockId: string): Promise<ResultadoOperacio
 }
 
 /**
- * Reprogramación administrativa: migra la MISMA reserva a un nuevo inicio,
- * recalculando el fin con la variante y revalidando conflictos. El trigger
- * re-sincroniza la ocupación y el EXCLUDE final garantiza integridad.
+ * Reprogramación administrativa: RPC transaccional que migra la MISMA
+ * reserva a un nuevo inicio (trigger re-sincroniza ocupación y el EXCLUDE
+ * final garantiza integridad). Registra motivo, historial y auditoría.
  */
 export async function reprogramarReserva(
   bookingId: string,
   nuevoInicio: string,
+  motivo: string,
 ): Promise<ResultadoOperacion> {
-  const { supabase, userId } = await clienteAdmin();
+  const { supabase } = await clienteAdmin();
 
-  const { data: reserva } = await supabase
-    .from("bookings")
-    .select("id, status, starts_at, ends_at, service_variant_id")
-    .eq("id", bookingId)
-    .maybeSingle();
-
-  if (!reserva) {
-    return { ok: false, error: "Reserva no encontrada." };
-  }
-
-  if (!["HELD", "CONFIRMED"].includes(reserva.status)) {
-    return { ok: false, error: "Solo se reprograman reservas HELD o CONFIRMED." };
-  }
-
-  const { data: variante } = await supabase
-    .from("service_variants")
-    .select("duration_minutes, prep_buffer_minutes")
-    .eq("id", reserva.service_variant_id)
-    .maybeSingle();
-
-  if (!variante) {
-    return { ok: false, error: "Variante no encontrada." };
-  }
-
-  const { data: settings } = await supabase
-    .from("business_settings")
-    .select("booking_gap_minutes")
-    .limit(1)
-    .maybeSingle();
-
-  const gap = settings?.booking_gap_minutes ?? 15;
-  const nuevoFin = new Date(
-    new Date(nuevoInicio).getTime() +
-      (variante.duration_minutes + variante.prep_buffer_minutes) * 60_000,
-  ).toISOString();
-
-  const margen = gap * 60_000;
-  void margen;
-
-  const { data: solapa } = await supabase.rpc("hay_conflicto_agenda", {
+  const { data, error } = await supabase.rpc("reprogramar_reserva_admin", {
+    p_booking_id: bookingId,
     p_inicio: nuevoInicio,
-    p_fin: nuevoFin,
-    p_excluir_booking: bookingId,
-    p_margen_min: gap,
+    p_motivo: motivo,
   });
-
-  if (solapa === true) {
-    return { ok: false, error: "El nuevo horario está ocupado. Elige otro." };
-  }
-
-  const { error } = await supabase
-    .from("bookings")
-    .update({ starts_at: nuevoInicio, ends_at: nuevoFin })
-    .eq("id", bookingId);
 
   if (error) {
     return { ok: false, error: "El sistema rechazó la reprogramación." };
   }
 
-  await registrarAuditoriaLocal(supabase, userId, "reserva.reprogramada", bookingId, {
-    de: reserva.starts_at,
-    a: nuevoInicio,
-  });
+  const respuesta = (data ?? {}) as { ok?: boolean; error?: string };
+  if (!respuesta.ok) {
+    return { ok: false, error: errorAmigable(respuesta.error) };
+  }
 
   return { ok: true };
 }

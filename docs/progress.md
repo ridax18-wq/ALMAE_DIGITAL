@@ -525,3 +525,17 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - BLOCKED: prueba con usuario autenticado NO owner (no existe segundo usuario de prueba; se cubre la proteccion anon y la comprobacion `es_owner_activo()` en la RPC).
 - Sin commit, sin push, sin deploy, sin cambios en Supabase remoto, sin cambios en la retencion de 15 minutos ni en pagos.
 - Pendientes 3.3-D: a definir segun roadmap (no iniciado).
+
+## Hito 3.3-D - reprogramacion, cancelacion administrativa y asistencia
+
+- Commit previo: 3.3-C `f7d654a` (sin push).
+- Migracion local `0023_reprogramar_reserva_admin.sql` (solo stack local): 3 RPCs `reprogramar_reserva_admin`, `cancelar_reserva_admin`, `registrar_asistencia_admin` con `es_owner_activo()`, motivo minimo 3 caracteres, `set_config('app.booking_reason', ...)` para el trigger de historial, `booking_events` + `audit_logs` y captura de `check_violation`/`exclusion_violation` con errores tipados (`no_autorizado`, `motivo_requerido`, `horario_ocupado`, `ya_cancelada`, `estado_no_cancelable`, `estado_no_reprogramable`, `transicion_invalida`, `asistencia_ya_registrada`, `inicio_en_el_pasado`).
+- Tipos de las 3 RPCs agregados en `src/types/database.ts` (UTF-16LE).
+- `admin-reservas.ts`: wrappers server `reprogramarReserva`, `cancelarComoAdmin` (con motivo), `completarCita`/`registrarNoShow` via `cambiarAsistenciaAdmin`; `errorAmigable` con mensajes nuevos; sin registrarAuditoria_local.
+- `reservas/actions.ts`: Zod exige `motivo` (>=3) en `cancelarAdmin`/`reprogramarAdmin` y opcional en `marcarCompletada`/`marcarNoShow`; redirects `?reprogramada=1` / `?cancelada=1`.
+- UI: `ReprogramarCita.tsx` (fecha + `consultarHorariosAdmin` + chips + motivo + confirmacion), `CancelarCita.tsx` (motivo + confirm, modo compacto), `AccionesCitaRapidas.tsx` en `/admin/agenda`; detalle con banners de reprogramacion/cancelacion y controles de asistencia.
+- Seguridad: RPC solo owner; anon y no-owner rechazados en servidor; solapes resueltos en la base (`agenda_occupancy`); sin cambios en retencion de 15 minutos ni en pagos.
+- Aislamiento e2e: 3.3-B ahora elige horas libres en vivo (`/api/disponibilidad`) en vez de 16:00/18:00 fijas y dias de prueba con offset 20-30 (evita residuos de specs previos; era el unico fallo de la regresion).
+- Pruebas: `tests/operaciones-cita.test.ts` 4/4 PASS; `e2e/operaciones-cita.spec.ts` 9/9 PASS; regresion combinada de specs de agenda 28/28 PASS; **suite e2e completa 57/57 PASS**; Vitest 116/116 PASS; typecheck 0, lint 0, build PASS.
+- Commit local 3.3-D autorizado por el propietario en este cierre (`feat(almae): reprogramacion cancelacion y asistencia 3.3-D`); sin push, sin deploy, sin migraciones en Supabase remoto.
+- Pendientes 3.3-E: a definir segun roadmap (no iniciado).

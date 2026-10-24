@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { registrarPresencial } from "@/app/admin/(protegido)/agenda/actions";
 import { FormBloqueo } from "@/app/admin/(protegido)/agenda/FormBloqueo";
+import { AccionesCitaRapidas } from "@/app/admin/(protegido)/agenda/AccionesCitaRapidas";
 import { LiberarBloqueo } from "@/app/admin/(protegido)/agenda/LiberarBloqueo";
 import { clasesTipoBloqueo, etiquetaTipoBloqueo } from "@/lib/services/bloqueos-agenda";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -337,6 +338,14 @@ export default async function AgendaPage({
                                 })()
                               : null}
                           </Link>
+                          {cita.status === "CONFIRMED" ? (
+                            <div className="mt-1.5 rounded-xl border border-sand-200 bg-sand-50 p-2.5">
+                              <AccionesCitaRapidas
+                                bookingId={cita.id}
+                                servicio={(cita.service as unknown as { name: string } | null)?.name ?? "La cita"}
+                              />
+                            </div>
+                          ) : null}
                         </li>
                       );
                     })}

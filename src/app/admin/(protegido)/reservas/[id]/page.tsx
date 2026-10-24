@@ -9,14 +9,15 @@ import {
   aprobarConfirmacion,
   marcarCompletada,
   marcarNoShow,
-  cancelarAdmin,
-  reprogramarAdmin,
 } from "@/app/admin/(protegido)/reservas/actions";
+import { ReprogramarCita } from "@/app/admin/(protegido)/reservas/[id]/ReprogramarCita";
+import { CancelarCita } from "@/app/admin/(protegido)/reservas/[id]/CancelarCita";
 import { ClockIcon, WalletIcon } from "@/components/icons";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { listarAdelantos } from "@/lib/services/admin-reservas";
 import { ETIQUETAS_ESTADO } from "@/lib/services/estados";
 import { formatFechaLima, formatHorarioLima, formatPen } from "@/lib/format";
+import { fechaLimaDeIso } from "@/lib/services/agenda-vista";
 
 export const metadata: Metadata = {
   title: "Detalle de reserva",
@@ -30,10 +31,10 @@ export default async function ReservaDetallePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; confirmada?: string }>;
+  searchParams: Promise<{ error?: string; confirmada?: string; reprogramada?: string; cancelada?: string }>;
 }) {
   const { id } = await params;
-  const { error: errorUrl, confirmada } = await searchParams;
+  const { error: errorUrl, confirmada, reprogramada, cancelada } = await searchParams;
 
   const supabase = createSupabaseServiceClient();
 
@@ -88,6 +89,18 @@ export default async function ReservaDetallePage({
         {confirmada ? (
           <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
             Cita confirmada correctamente.
+          </p>
+        ) : null}
+
+        {reprogramada ? (
+          <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            Cita reprogramada. El nuevo horario quedó reservado y el anterior liberado.
+          </p>
+        ) : null}
+
+        {cancelada ? (
+          <p role="status" className="mt-4 rounded-xl border border-sand-300 bg-sand-100 px-4 py-3 text-sm text-ink-800">
+            Cita cancelada. El horario quedó liberado.
           </p>
         ) : null}
 
@@ -305,14 +318,13 @@ export default async function ReservaDetallePage({
 
                 <div className="rounded-2xl border border-sand-200 bg-white p-5 shadow-xs">
                   <h2 className="font-display text-base font-bold text-ink-900">Reprogramar</h2>
-                  <form action={reprogramarAdmin} className="mt-3 flex flex-col gap-2">
-                    <input type="hidden" name="booking_id" value={reserva.id} />
-                    <input name="fecha_nueva" type="date" required aria-label="Nueva fecha" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
-                    <input name="hora_nueva" type="time" required aria-label="Nueva hora" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
-                    <button type="submit" className="rounded-xl border border-sand-200 px-4 py-2.5 text-sm font-semibold text-ink-900 hover:bg-sand-100">
-                      Reprogramar
-                    </button>
-                  </form>
+                  <ReprogramarCita
+                    bookingId={reserva.id}
+                    variantId={reserva.service_variant_id}
+                    servicio={servicio?.name ?? "La cita"}
+                    duracion={variante?.duration_minutes ?? 0}
+                    fechaActual={fechaLimaDeIso(String(reserva.starts_at))}
+                  />
                 </div>
               </>
             ) : null}
@@ -325,34 +337,45 @@ export default async function ReservaDetallePage({
                 <div className="mt-3 flex flex-col gap-2">
                   <form action={marcarCompletada}>
                     <input type="hidden" name="booking_id" value={reserva.id} />
+                    <input
+                      name="motivo"
+                      maxLength={200}
+                      placeholder="Observación (opcional)"
+                      aria-label="Observación de asistencia"
+                      className="mb-2 w-full rounded-lg border border-sand-200 bg-white px-3 py-2 text-xs"
+                    />
                     <button type="submit" className="w-full rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800">
-                      Marcar completada
+                      Marcar completada (asistió)
                     </button>
                   </form>
                   <form action={marcarNoShow}>
                     <input type="hidden" name="booking_id" value={reserva.id} />
+                    <input
+                      name="motivo"
+                      maxLength={200}
+                      placeholder="Observación (opcional)"
+                      aria-label="Observación de inasistencia"
+                      className="mb-2 w-full rounded-lg border border-sand-200 bg-white px-3 py-2 text-xs"
+                    />
                     <button type="submit" className="w-full rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-800 hover:bg-red-50">
-                      Registrar inasistencia
+                      Registrar inasistencia (no asistió)
                     </button>
                   </form>
-                  <form action={cancelarAdmin} className="flex gap-2">
-                    <input type="hidden" name="booking_id" value={reserva.id} />
-                    <input name="motivo" placeholder="Motivo" className="flex-1 rounded-lg border border-sand-200 px-2 py-2 text-xs" />
-                    <button type="submit" className="rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-800 hover:bg-red-50">
-                      Cancelar
-                    </button>
-                  </form>
-                  <form action={reprogramarAdmin} className="border-t border-sand-200 pt-3">
-                    <input type="hidden" name="booking_id" value={reserva.id} />
-                    <p className="mb-2 text-xs font-semibold text-ink-700">Reprogramar cita</p>
-                    <div className="flex gap-2">
-                      <input name="fecha_nueva" type="date" required className="rounded-lg border border-sand-200 bg-white px-2 py-2 text-xs" />
-                      <input name="hora_nueva" type="time" required className="w-24 rounded-lg border border-sand-200 bg-white px-2 py-2 text-xs" />
-                      <button type="submit" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-xs font-semibold text-ink-900 hover:bg-sand-100">
-                        Mover
-                      </button>
-                    </div>
-                  </form>
+                  <CancelarCita
+                    bookingId={reserva.id}
+                    servicio={servicio?.name ?? "La cita"}
+                    compacto
+                  />
+                  <div className="border-t border-sand-200 pt-3">
+                    <p className="mb-1 text-xs font-semibold text-ink-700">Reprogramar cita</p>
+                    <ReprogramarCita
+                      bookingId={reserva.id}
+                      variantId={reserva.service_variant_id}
+                      servicio={servicio?.name ?? "La cita"}
+                      duracion={variante?.duration_minutes ?? 0}
+                      fechaActual={fechaLimaDeIso(String(reserva.starts_at))}
+                    />
+                  </div>
                 </div>
               </div>
             ) : null}

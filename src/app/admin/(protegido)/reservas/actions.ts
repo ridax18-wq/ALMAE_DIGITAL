@@ -151,7 +151,8 @@ export async function marcarCompletada(datos: FormData): Promise<void> {
   const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
   if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
 
-  const resultado = await completarCita(bookingId.data);
+  const motivo = String(datos.get("motivo") ?? "").trim();
+  const resultado = await completarCita(bookingId.data, motivo);
 
   if (!resultado.ok) {
     redirect(`/admin/reservas/${bookingId.data}?error=${encodeURIComponent(resultado.error ?? "error")}`);
@@ -165,7 +166,8 @@ export async function marcarNoShow(datos: FormData): Promise<void> {
   const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
   if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
 
-  const resultado = await registrarNoShow(bookingId.data);
+  const motivo = String(datos.get("motivo") ?? "").trim();
+  const resultado = await registrarNoShow(bookingId.data, motivo);
 
   if (!resultado.ok) {
     redirect(`/admin/reservas/${bookingId.data}?error=${encodeURIComponent(resultado.error ?? "error")}`);
@@ -179,7 +181,13 @@ export async function cancelarAdmin(datos: FormData): Promise<void> {
   const bookingId = uuidSchema.safeParse(datos.get("booking_id"));
   if (!bookingId.success) redirect("/admin/reservas?error=datos_invalidos");
 
-  const motivo = String(datos.get("motivo") ?? "");
+  const motivo = String(datos.get("motivo") ?? "").trim();
+  if (motivo.length < 3) {
+    redirect(
+      `/admin/reservas/${bookingId.data}?error=${encodeURIComponent("Indica un motivo de al menos 3 caracteres para cancelar.")}`,
+    );
+  }
+
   const resultado = await cancelarComoAdmin(bookingId.data, motivo);
 
   if (!resultado.ok) {
@@ -187,7 +195,8 @@ export async function cancelarAdmin(datos: FormData): Promise<void> {
   }
 
   revalidatePath(`/admin/reservas/${bookingId.data}`);
-  redirect(`/admin/reservas/${bookingId.data}`);
+  revalidatePath("/admin/reservas");
+  redirect(`/admin/reservas/${bookingId.data}?cancelada=1`);
 }
 
 export async function reprogramarAdmin(datos: FormData): Promise<void> {
@@ -197,20 +206,23 @@ export async function reprogramarAdmin(datos: FormData): Promise<void> {
       .object({
         fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
         hora: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
+        motivo: z.string().trim().min(3, "Indica un motivo de al menos 3 caracteres"),
       })
       .safeParse({
         fecha: datos.get("fecha_nueva"),
         hora: datos.get("hora_nueva"),
+        motivo: datos.get("motivo"),
       }),
   );
 
   const nuevoInicio = `${parsed.fecha as string}T${parsed.hora as string}:00-05:00`;
-  const resultado = await reprogramarReserva(bookingId, nuevoInicio);
+  const resultado = await reprogramarReserva(bookingId, nuevoInicio, parsed.motivo as string);
 
   if (!resultado.ok) {
     redirect(`/admin/reservas/${bookingId}?error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
   revalidatePath(`/admin/reservas/${bookingId}`);
-  redirect(`/admin/reservas/${bookingId}`);
+  revalidatePath("/admin/reservas");
+  redirect(`/admin/reservas/${bookingId}?reprogramada=1`);
 }
