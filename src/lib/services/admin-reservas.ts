@@ -367,7 +367,7 @@ export async function crearReservaPresencial(
 export async function crearBloqueo(entrada: {
   inicio: string;
   fin: string;
-  tipo: "BREAK" | "INTERNAL" | "ABSENCE" | "MAINTENANCE" | "OTHER";
+  tipo: string;
   reason: string;
 }): Promise<ResultadoOperacion> {
   const { supabase } = await clienteAdmin();
@@ -386,16 +386,25 @@ export async function crearBloqueo(entrada: {
   const respuesta = (data ?? {}) as {
     ok?: boolean;
     error?: string;
-    conflictos?: unknown;
+    conflictos?: { estado?: string }[];
   };
 
   if (!respuesta.ok) {
     if (respuesta.error === "conflicto_con_citas") {
+      const hayRetencion = (respuesta.conflictos ?? []).some((c) => c.estado === "HELD");
       return {
         ok: false,
-        error: "El bloqueo choca con citas existentes. Resuélvelas primero.",
+        error: hayRetencion
+          ? "Hay una reserva en retención vigente en ese horario. Resuélvela antes de bloquear."
+          : "Hay citas confirmadas en ese horario. Reprográmalas o cancélalas antes de bloquear.",
         detalle: { conflictos: respuesta.conflictos },
       };
+    }
+    if (respuesta.error === "bloqueo_superpuesto") {
+      return { ok: false, error: "Ya existe un bloqueo en ese horario." };
+    }
+    if (respuesta.error === "rango_excesivo") {
+      return { ok: false, error: "El bloqueo no puede durar más de 90 días." };
     }
     return { ok: false, error: errorAmigable(respuesta.error) };
   }

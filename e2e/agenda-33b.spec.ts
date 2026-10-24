@@ -135,12 +135,13 @@ test.describe("HITO 3.3-B â€” reservas presenciales y WhatsApp", () => {
     await expect(page.getByRole("alert").filter({ hasText: /ocupado\. Elige/ })).toBeVisible();
 
     await page.goto(`/admin/agenda?fecha=${DIA_B}`);
-    await page.getByLabel("Fecha del bloqueo").fill(DIA_B);
-    await page.getByLabel("Inicio del bloqueo").fill("15:00");
-    await page.getByLabel("Fin del bloqueo").fill("16:00");
+    await page.getByLabel("Fecha del bloqueo", { exact: true }).fill(DIA_B);
+    await page.getByLabel("Inicio del bloqueo", { exact: true }).fill("15:00");
+    await page.getByLabel("Fecha de fin del bloqueo", { exact: true }).fill(DIA_B);
+    await page.getByLabel("Fin del bloqueo", { exact: true }).fill("16:00");
     await page.getByLabel("Tipo de bloqueo").selectOption("BREAK");
     await page.getByPlaceholder("Motivo (opcional)").fill(MOTIVO_BLOQUEO);
-    await page.getByRole("button", { name: "Bloquear", exact: true }).click();
+    await page.getByRole("button", { name: "Bloquear horario", exact: true }).click();
     await expect(page.getByText(MOTIVO_BLOQUEO).first()).toBeVisible();
 
     await crearCita(page, DIA_B, "15:30", "IN_PERSON", "Choque Bloqueo 33B", "955555556");

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  bloquearHorario,
-  retirarBloqueoAdmin,
-  registrarPresencial,
-} from "@/app/admin/(protegido)/agenda/actions";
+import { registrarPresencial } from "@/app/admin/(protegido)/agenda/actions";
+import { FormBloqueo } from "@/app/admin/(protegido)/agenda/FormBloqueo";
+import { LiberarBloqueo } from "@/app/admin/(protegido)/agenda/LiberarBloqueo";
+import { clasesTipoBloqueo, etiquetaTipoBloqueo } from "@/lib/services/bloqueos-agenda";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { ETIQUETAS_ESTADO } from "@/lib/services/estados";
 import { formatFechaLima } from "@/lib/format";
@@ -44,14 +43,6 @@ function desplazarFecha(fecha: string, dias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-const TIPO_BLOQUEO: Record<string, string> = {
-  BREAK: "Descanso",
-  INTERNAL: "Interno",
-  ABSENCE: "Ausencia",
-  MAINTENANCE: "Mantenimiento",
-  OTHER: "Otro",
-};
-
 const LEYENDA: { texto: string; clases: string }[] = [
   { texto: "Confirmada", clases: "bg-green-500" },
   { texto: "Pendiente de confirmación", clases: "bg-amber-500" },
@@ -63,9 +54,25 @@ const LEYENDA: { texto: string; clases: string }[] = [
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fecha?: string; vista?: string; error?: string; presencial?: string; codigo?: string }>;
+  searchParams: Promise<{
+    fecha?: string;
+    vista?: string;
+    error?: string;
+    presencial?: string;
+    codigo?: string;
+    bloqueo?: string;
+    liberado?: string;
+  }>;
 }) {
-  const { fecha: fechaParam, vista: vistaParam, error: errorUrl, presencial, codigo } = await searchParams;
+  const {
+    fecha: fechaParam,
+    vista: vistaParam,
+    error: errorUrl,
+    presencial,
+    codigo,
+    bloqueo,
+    liberado,
+  } = await searchParams;
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(fechaParam ?? "") ? (fechaParam ?? diaLima(0)) : diaLima(0);
   const vista = vistaParam === "semana" ? "semana" : "dia";
   const ahoraIso = new Date().toISOString();
@@ -142,9 +149,14 @@ export default async function AgendaPage({
     const dia = fechaLimaDeIso(String(cita.starts_at));
     porDia.get(dia)?.citas.push(cita);
   }
-  for (const bloqueo of bloqueos ?? []) {
-    const dia = fechaLimaDeIso(String(bloqueo.starts_at));
-    porDia.get(dia)?.bloqueos.push(bloqueo);
+  for (const dia of dias) {
+    const inicioDia = new Date(`${dia}T00:00:00-05:00`).getTime();
+    const finDia = inicioDia + 24 * 60 * 60_000;
+    for (const bloque of bloqueos ?? []) {
+      const desde = new Date(String(bloque.starts_at)).getTime();
+      const hasta = new Date(String(bloque.ends_at)).getTime();
+      if (desde < finDia && hasta > inicioDia) porDia.get(dia)?.bloqueos.push(bloque);
+    }
   }
 
   return (
@@ -218,6 +230,16 @@ export default async function AgendaPage({
         {presencial === "ok" ? (
           <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
             Reserva presencial registrada y confirmada: {codigo}
+          </p>
+        ) : null}
+        {bloqueo === "ok" ? (
+          <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            Bloqueo registrado. El horario ya no está disponible para reservas web ni presenciales.
+          </p>
+        ) : null}
+        {liberado === "ok" ? (
+          <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            Horario liberado. Vuelve a aparecer como disponible.
           </p>
         ) : null}
         {errorUrl ? (
@@ -318,23 +340,30 @@ export default async function AgendaPage({
                         </li>
                       );
                     })}
-                    {(porDia.get(dia)?.bloqueos ?? []).map((bloqueo) => (
-                      <li key={`bloqueo-${bloqueo.id}`} className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-3 py-2.5 text-sm">
-                        <span className="text-ink-700">
-                          <span className="font-semibold">
-                            {horaLimaDeIso(String(bloqueo.starts_at))} – {horaLimaDeIso(String(bloqueo.ends_at))}
-                          </span>{" "}
-                          · Bloqueada · {tipoBloqueoTexto(bloqueo.block_type)}
-                          {bloqueo.reason ? ` — ${bloqueo.reason}` : ""}
-                        </span>
-                        <form action={retirarBloqueoAdmin}>
-                          <input type="hidden" name="block_id" value={bloqueo.id} />
-                          <button type="submit" className="rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-800 hover:bg-red-50">
-                            Retirar
-                          </button>
-                        </form>
-                      </li>
-                    ))}
+                    {(porDia.get(dia)?.bloqueos ?? []).map((bloqueo) => {
+                      const inicioIso = String(bloqueo.starts_at);
+                      const finIso = String(bloqueo.ends_at);
+                      return (
+                        <li key={`bloqueo-${bloqueo.id}`} className={`rounded-xl border px-3 py-2.5 text-sm ${clasesTipoBloqueo(String(bloqueo.block_type))}`}>
+                          <details>
+                            <summary className="cursor-pointer">
+                              <span className="font-semibold">
+                                {horaLimaDeIso(inicioIso)} – {horaLimaDeIso(finIso)}
+                              </span>{" "}
+                              · Bloqueada · {etiquetaTipoBloqueo(String(bloqueo.block_type))}
+                              {bloqueo.reason ? ` — ${bloqueo.reason}` : ""}
+                            </summary>
+                            <div className="mt-2 space-y-2 text-xs">
+                              <p>
+                                Inicio: {formatFechaLima(`${fechaLimaDeIso(inicioIso)}T12:00:00`)} {horaLimaDeIso(inicioIso)} · Fin:{" "}
+                                {formatFechaLima(`${fechaLimaDeIso(finIso)}T12:00:00`)} {horaLimaDeIso(finIso)} (hora de Lima)
+                              </p>
+                              <LiberarBloqueo blockId={bloqueo.id} fecha={dia} />
+                            </div>
+                          </details>
+                        </li>
+                      );
+                    })}
                     {franja && huecos.length > 0 ? (
                       <li className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-900">
                         Disponible:{" "}
@@ -369,10 +398,6 @@ export default async function AgendaPage({
       </div>
     </main>
   );
-}
-
-function tipoBloqueoTexto(tipo: string): string {
-  return TIPO_BLOQUEO[tipo] ?? tipo;
 }
 
 type VarianteAdmin = {
@@ -422,31 +447,6 @@ function FormPresencial({
       <input name="motivo_exencion" maxLength={120} placeholder="Motivo de la exención (si aplica)" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
       <button type="submit" className="rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800">
         Registrar presencial (CONFIRMED)
-      </button>
-    </form>
-  );
-}
-
-function FormBloqueo({ fechaHoy }: { fechaHoy: string }) {
-  return (
-    <form action={bloquearHorario} className="mt-3 flex flex-col gap-2.5">
-      <div className="flex gap-2">
-        <input name="fecha" type="date" required defaultValue={fechaHoy} aria-label="Fecha del bloqueo" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm" />
-        <select name="tipo" aria-label="Tipo de bloqueo" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm">
-          <option value="BREAK">Descanso</option>
-          <option value="INTERNAL">Actividad interna</option>
-          <option value="ABSENCE">Ausencia</option>
-          <option value="MAINTENANCE">Mantenimiento</option>
-          <option value="OTHER">Otro</option>
-        </select>
-      </div>
-      <div className="flex gap-2">
-        <input name="hora_inicio" type="time" required aria-label="Inicio del bloqueo" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm" />
-        <input name="hora_fin" type="time" required aria-label="Fin del bloqueo" className="w-1/2 rounded-lg border border-sand-200 bg-white px-2 py-2 text-sm" />
-      </div>
-      <input name="motivo" maxLength={120} placeholder="Motivo (opcional)" className="rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm" />
-      <button type="submit" className="rounded-xl border border-sand-200 px-4 py-2.5 text-sm font-semibold text-ink-900 hover:bg-sand-100">
-        Bloquear
       </button>
     </form>
   );

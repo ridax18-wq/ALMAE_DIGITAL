@@ -507,3 +507,21 @@ El propietario aportó tarjetas de servicios **con precios reales** (`Imagenes/S
 - No ejecutadas: suite e2e completa (43) tras los ultimos cambios; build de produccion en esta sesion de cierre (el ultimo build es posterior a los cambios de redirects).
 - Sin push, sin deploy, sin cambios en Supabase remoto, sin cambios en el motor de reservas ni en la retencion web de 15 minutos. Pagos web no habilitados.
 - Pendientes 3.3-C: gestion de bloqueos desde la UI del calendario y los demas puntos de su alcance (no iniciado).
+
+## Hito 3.3-C - bloqueos administrativos de agenda
+
+- Commit previo: 3.3-B `0a8e8d4` (sin push).
+- Auditoria: se reutilizaron `crear_bloqueo_agenda`, `liberar_bloqueo_agenda`, `agenda_occupancy` (exclusion `agenda_no_overlap`, fuente unica de solapes) y `disponibilidad.ts` (lectura en vivo de `schedule_blocks` y reservas HELD/PENDING/CONFIRMED).
+- Migracion local `0022_bloqueos_agenda_tipos_y_solapes.sql` (aplicada solo en el stack local): agrega `LUNCH`, `VACATION`, `TRAINING` al enum `block_type`; `crear_bloqueo_agenda` valida solapes con otros bloqueos (`bloqueo_superpuesto`), rango maximo de 90 dias (`rango_excesivo`) y captura `exclusion_violation` para carreras. Sin cambios en el motor de reservas.
+- Tipos de bloqueo en UI: Descanso (BREAK), Almuerzo (LUNCH), Ausencia (ABSENCE), Vacaciones (VACATION), Capacitacion (TRAINING), Mantenimiento (MAINTENANCE), Otros (OTHER). Legado INTERNAL se muestra como "Interno".
+- Modulo puro `src/lib/services/bloqueos-agenda.ts`: validacion de intervalo en America/Lima (-05:00), rechazo de fechas inexistentes (calendario real), hora final no posterior al inicio, maximo 90 dias, texto de vista previa y colores por tipo.
+- Interfaz `/admin/agenda`: `FormBloqueo.tsx` (cliente) con fecha/hora de inicio y fin, multi-dia, vista previa del intervalo, boton "Bloquear horario" deshabilitado si el intervalo es invalido. Bloques con color por tipo; detalle plegable con inicio/fin y motivo; `LiberarBloqueo.tsx` con confirmacion (`window.confirm`) antes de liberar. Mensajes de exito "Bloqueo registrado" / "Horario liberado" y errores en `role="alert"`. Los bloques multi-dia aparecen en cada dia que cubren.
+- Mensajes de error: citas confirmadas (`conflicto_con_citas`), reserva HELD vigente (mensaje propio), bloque superpuesto y rango excesivo.
+- Seguridad: RPC solo para `authenticated` con `es_owner_activo()`; anon sin permiso de ejecucion; auditoria `agenda.bloqueo_creado` / `agenda.bloqueo_retirado`; sin inserts directos desde el navegador; validacion Zod en servidor.
+- Correccion de aislamiento de datos en e2e: `beforeEach` de 3.3-C limpia solo pacientes con celulares 9555557xx, sus reservas y bloqueos con motivo "Bloqueo prueba 33C" en sus dias; `asegurarBaseLocal()` aborta fuera de 127.0.0.1/localhost. Dias de prueba en horizonte de 30 dias (`max_advance_days`).
+- Ajuste en 3.3-B: el formulario de bloqueo ahora pide fecha de fin; el boton es "Bloquear horario" (spec actualizado).
+- Pruebas: `tests/bloqueos-agenda.test.ts` 10/10 PASS; Vitest total 112/112 PASS; Playwright `e2e/bloqueos-agenda.spec.ts` 5/5 PASS (anon sin sesion y RPC denegada a anon; bloqueo valido con color y ausencia en `/api/disponibilidad`; rechazo de solape, cita confirmada y HELD vigente; liberar con confirmacion y reaparicion en disponibilidad; validacion de hora final); regresion e2e 3.3-A, 3.3-B, reservas y admin-panel 17/17 PASS; typecheck y lint PASS; build PASS.
+- NOT RUN: suite e2e completa (43+ tests) tras los ultimos cambios; se ejecutaron los specs afectados.
+- BLOCKED: prueba con usuario autenticado NO owner (no existe segundo usuario de prueba; se cubre la proteccion anon y la comprobacion `es_owner_activo()` en la RPC).
+- Sin commit, sin push, sin deploy, sin cambios en Supabase remoto, sin cambios en la retencion de 15 minutos ni en pagos.
+- Pendientes 3.3-D: a definir segun roadmap (no iniciado).

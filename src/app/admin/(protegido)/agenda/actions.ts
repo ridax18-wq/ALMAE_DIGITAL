@@ -12,6 +12,7 @@ import {
 } from "@/lib/services/admin-reservas";
 import { disponibilidadDeDia } from "@/lib/services/disponibilidad";
 import { horaLimaDeIso } from "@/lib/services/agenda-vista";
+import { validarIntervaloBloqueo } from "@/lib/services/bloqueos-agenda";
 
 export type ResultadoHorariosAdmin =
   | { ok: true; horas: string[] }
@@ -59,64 +60,87 @@ export async function consultarHorariosAdmin(datos: FormData): Promise<Resultado
   };
 }
 
+const TIPOS_BLOQUEO_ADMIN = [
+  "BREAK",
+  "LUNCH",
+  "ABSENCE",
+  "VACATION",
+  "TRAINING",
+  "MAINTENANCE",
+  "OTHER",
+] as const;
+
+function fechaQueryDesde(valor: FormDataEntryValue | null): string {
+  return typeof valor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(valor) ? `fecha=${valor}&` : "";
+}
+
 export async function bloquearHorario(datos: FormData): Promise<void> {
-  const fechaCruda = datos.get("fecha");
-  const fechaQuery =
-    typeof fechaCruda === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaCruda)
-      ? `&fecha=${fechaCruda}`
-      : "";
+  const fechaQuery = fechaQueryDesde(datos.get("fecha_inicio"));
   const parsed = z
     .object({
-      fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+      fecha_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de inicio inválida"),
       hora_inicio: z.string().regex(/^\d{2}:\d{2}$/, "Hora de inicio inválida"),
+      fecha_fin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin inválida"),
       hora_fin: z.string().regex(/^\d{2}:\d{2}$/, "Hora de fin inválida"),
-      tipo: z.enum(["BREAK", "INTERNAL", "ABSENCE", "MAINTENANCE", "OTHER"]),
-      motivo: z.string().max(120).optional(),
+      tipo: z.enum(TIPOS_BLOQUEO_ADMIN),
+      motivo: z.string().trim().max(120).optional(),
     })
     .safeParse({
-      fecha: fechaCruda,
+      fecha_inicio: datos.get("fecha_inicio"),
       hora_inicio: datos.get("hora_inicio"),
+      fecha_fin: datos.get("fecha_fin"),
       hora_fin: datos.get("hora_fin"),
       tipo: datos.get("tipo"),
-      motivo: datos.get("motivo"),
+      motivo: datos.get("motivo") ?? "",
     });
 
   if (!parsed.success) {
-    redirect(`/admin/agenda?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "datos inválidos")}${fechaQuery}`);
+    redirect(`/admin/agenda?${fechaQuery}error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "datos inválidos")}`);
+  }
+
+  const intervalo = validarIntervaloBloqueo({
+    fechaInicio: parsed.data.fecha_inicio,
+    horaInicio: parsed.data.hora_inicio,
+    fechaFin: parsed.data.fecha_fin,
+    horaFin: parsed.data.hora_fin,
+  });
+  if (!intervalo.ok) {
+    redirect(`/admin/agenda?${fechaQuery}error=${encodeURIComponent(intervalo.error)}`);
   }
 
   const resultado = await crearBloqueo({
-    inicio: `${parsed.data.fecha}T${parsed.data.hora_inicio}:00-05:00`,
-    fin: `${parsed.data.fecha}T${parsed.data.hora_fin}:00-05:00`,
+    inicio: intervalo.inicioIso,
+    fin: intervalo.finIso,
     tipo: parsed.data.tipo,
     reason: parsed.data.motivo ?? "",
   });
 
   if (!resultado.ok) {
-    redirect(`/admin/agenda?fecha=${parsed.data.fecha}&error=${encodeURIComponent(resultado.error ?? "error")}`);
+    redirect(`/admin/agenda?${fechaQuery}error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
   revalidatePath("/admin/agenda");
   revalidatePath("/reservar");
-  redirect(`/admin/agenda?fecha=${parsed.data.fecha}`);
+  redirect(`/admin/agenda?fecha=${parsed.data.fecha_inicio}&bloqueo=ok`);
 }
 
 export async function retirarBloqueoAdmin(datos: FormData): Promise<void> {
+  const fechaQuery = fechaQueryDesde(datos.get("fecha"));
   const blockId = z.uuid().safeParse(datos.get("block_id"));
 
   if (!blockId.success) {
-    redirect("/admin/agenda?error=datos_invalidos");
+    redirect(`/admin/agenda?${fechaQuery}error=datos_invalidos`);
   }
 
   const resultado = await retirarBloqueo(blockId.data);
 
   if (!resultado.ok) {
-    redirect(`/admin/agenda?error=${encodeURIComponent(resultado.error ?? "error")}`);
+    redirect(`/admin/agenda?${fechaQuery}error=${encodeURIComponent(resultado.error ?? "error")}`);
   }
 
   revalidatePath("/admin/agenda");
   revalidatePath("/reservar");
-  redirect("/admin/agenda");
+  redirect(`/admin/agenda?${fechaQuery}liberado=ok`);
 }
 
 export async function registrarPresencial(datos: FormData): Promise<void> {
