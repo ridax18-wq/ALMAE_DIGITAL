@@ -23,7 +23,7 @@
 
 ## Datos ficticios
 
-- [ ] Revisados los seeds `_DEMO` de `0005_seed_demo.sql`: eliminados o reemplazados por datos oficiales
+- [ ] Revisados los seeds `_DEMO` de `0005_seed_demo.sql`: eliminados o reemplazados por datos oficiales (ejecutar `scripts/limpiar-demo.sql` con `-v ON_ERROR_STOP=1 -v confirmar_limpieza_demo=1`; por defecto el script **aborta**)
 - [ ] Testimonios: solo con consentimiento real (o sección deshabilitada)
 - [ ] Fotos: placeholders reemplazados; sin imágenes que representen falsamente al personal
 - [ ] Teléfonos/precios oficiales verificados por el propietario
@@ -37,6 +37,7 @@
 - [ ] Auth: SMTP propio configurado; `SITE_URL` correcto; confirmación de correo activa
 - [ ] Storage: bucket y políticas 0018 verificados; URLs públicas correctas
 - [ ] Backup automático (7 días en Pro) + dump semanal programado
+- [ ] Respaldo independiente de Storage: `node scripts/backup-storage.mjs` completado
 - [ ] Proyecto con spend cap y alertas de uso
 
 ## Aplicación
@@ -64,6 +65,7 @@
 
 ## Pruebas antes de publicar
 
+- [ ] `node scripts/verificar-sin-demo.mjs` con `NEXT_PUBLIC_ENV=production` → PASS (sin datos demo)
 - [ ] Suite e2e completa PASS en el entorno de staging/build final
 - [ ] Smoke test manual: reserva web → HELD → expiración a los 15 min → agenda
 - [ ] Login del propietario, agenda día/semana, CMS, WhatsApp

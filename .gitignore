@@ -54,3 +54,6 @@ next-env.d.ts
 
 # Activos origen del propietario (incluye fotos de pacientes sin consentimiento publicado) � solo local
 Imagenes/
+
+# Respaldos (BD y Storage: pueden contener datos personales) — solo local
+backups/

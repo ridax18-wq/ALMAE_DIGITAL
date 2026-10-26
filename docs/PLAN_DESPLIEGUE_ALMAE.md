@@ -43,3 +43,12 @@
 ## 5. Costos (verificados en el Hito 4.1)
 
 - Vercel Pro: US$20/mes · Supabase Pro: US$25/mes · Dominio `.pe`: S/110–200/año (`.com`: S/50–80/año) · SMTP: pendiente de cotización · Respaldos: incluidos 7 días en Pro (dump propio: pendiente de cotización).
+
+## 6. Rate limiting distribuido (propuesta para 4.4)
+
+En Vercel el rate limit actual en memoria se reinicia en cada invocación serverless y no cubre réplicas: no es fiable en producción.
+
+- **Propuesta**: Upstash Redis (REST), compatible con serverless. Variables `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` (solo server-side). Plan gratuito suficiente para el volumen de un solo profesional.
+- **Implementación**: en `src/lib/services/rate-limit.ts`, si las variables existen usar `INCR` + `EXPIRE` vía REST (ventana fija) conservando la API síncrona actual (`limitarLlamadas`); si no existen, mantener el contador en memoria (compatibilidad total, cero roturas).
+- **Umbrales propuestos**: `/api/disponibilidad` 30/min por IP, `/api/reservas` 10/min por IP; `/api/cron/expire-holds` ya protegido con `CRON_SECRET`.
+- **Requiere autorización**: contratar/configurar Upstash e implementar la rama distribuida (hito posterior).
