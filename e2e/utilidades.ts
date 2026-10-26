@@ -23,18 +23,44 @@ export function supabasePruebas(): SupabaseClient {
   );
 }
 
-/** Vacia la agenda del stack local para que las pruebas partan deterministas. */
+const TELEFONOS_FICTICIOS = ["988776655", "987654321"];
+
+/**
+ * Borra SOLO los registros ficticios de las pruebas de agenda (pacientes con
+ * los teléfonos de prueba y sus reservas, bloqueos con motivo de prueba).
+ * Nunca hace borrados globales y solo corre contra el stack local.
+ */
 export async function limpiarAgendaLocal(): Promise<void> {
   const supabase = supabasePruebas();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
-  if (!url.includes("127.0.0.1")) {
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/.test(url)) {
     throw new Error("La limpieza de pruebas solo corre contra el stack local");
   }
 
-  await supabase.from("bookings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase.from("schedule_blocks").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase.from("patients").delete().neq("phone", "INEXISTENTE");
+  const { data: pacientes, error: errPacientes } = await supabase
+    .from("patients")
+    .select("id")
+    .in("phone", TELEFONOS_FICTICIOS);
+  if (errPacientes) throw new Error(errPacientes.message);
+
+  const ids = (pacientes ?? []).map((p) => p.id);
+  if (ids.length > 0) {
+    const { error: errBookings } = await supabase
+      .from("bookings")
+      .delete()
+      .in("patient_id", ids);
+    if (errBookings) throw new Error(errBookings.message);
+
+    const { error: errPac } = await supabase.from("patients").delete().in("id", ids);
+    if (errPac) throw new Error(errPac.message);
+  }
+
+  const { error: errBloqueos } = await supabase
+    .from("schedule_blocks")
+    .delete()
+    .like("reason", "Bloqueo prueba%");
+  if (errBloqueos) throw new Error(errBloqueos.message);
 }
 
 /** Recorre hasta 5 fechas siguientes hasta encontrar un día con slots. */

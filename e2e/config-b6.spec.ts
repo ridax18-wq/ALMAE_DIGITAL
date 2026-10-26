@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { supabasePruebas } from "./utilidades";
 
+const INICIO_PRUEBA = new Date().toISOString();
+
 async function login(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/admin/login");
   const intento = async (): Promise<void> => {
@@ -82,5 +84,8 @@ test.afterAll(async () => {
       },
     }).eq("id", bloque.id);
   }
-  await supabase.from("content_revisions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await supabase
+    .from("content_revisions")
+    .delete()
+    .gte("created_at", INICIO_PRUEBA);
 });

@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
-import { supabasePruebas } from "./utilidades";
+import { cargarEnvLocal, supabasePruebas } from "./utilidades";
+
+const INICIO_PRUEBA = new Date().toISOString();
+
+type AjustesPublicables = {
+  id: string;
+  phone: string;
+  hours_note: string;
+  address_street: string;
+  maps_url: string;
+  local_intro: string;
+};
+
+let ajustesOriginales: AjustesPublicables | null = null;
+
+function asegurarBaseLocal(): void {
+  cargarEnvLocal();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/.test(url)) {
+    throw new Error("Pruebas config-b51 solo corren contra la base local de pruebas");
+  }
+}
 
 async function login(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/admin/login");
@@ -89,17 +110,37 @@ test.describe("HITO 3.2-B5.1 — ubicación, contacto y horarios", () => {
   });
 });
 
-test.afterAll(async () => {
-  const supabase = supabasePruebas();
-  await supabase.from("content_revisions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase
+test.beforeAll(async () => {
+  asegurarBaseLocal();
+  const { data, error } = await supabasePruebas()
     .from("business_settings")
-    .update({
-      phone: "",
-      hours_note: "",
-      address_street: "Altos del Rímac 250",
-      maps_url: "",
-      local_intro: "",
-    })
-    .neq("id", "00000000-0000-0000-0000-000000000000");
+    .select("id, phone, hours_note, address_street, maps_url, local_intro")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  ajustesOriginales = data as AjustesPublicables | null;
+});
+
+test.afterAll(async () => {
+  asegurarBaseLocal();
+  const supabase = supabasePruebas();
+
+  await supabase
+    .from("content_revisions")
+    .delete()
+    .gte("created_at", INICIO_PRUEBA);
+
+  if (ajustesOriginales) {
+    const { error } = await supabase
+      .from("business_settings")
+      .update({
+        phone: ajustesOriginales.phone,
+        hours_note: ajustesOriginales.hours_note,
+        address_street: ajustesOriginales.address_street,
+        maps_url: ajustesOriginales.maps_url,
+        local_intro: ajustesOriginales.local_intro,
+      })
+      .eq("id", ajustesOriginales.id);
+    if (error) throw new Error(error.message);
+  }
 });
