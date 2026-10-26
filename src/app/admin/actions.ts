@@ -26,6 +26,14 @@ export async function iniciarSesion(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
+  if (
+    parsed.data.email.toLowerCase() === "admin@almae.demo" &&
+    (process.env.NEXT_PUBLIC_ENV === "production" ||
+      process.env.NEXT_PUBLIC_SITE_URL?.startsWith("https://"))
+  ) {
+    return { error: "Cuenta de demostración no disponible en producción." };
+  }
+
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase.auth.signInWithPassword(parsed.data);

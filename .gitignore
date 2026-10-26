@@ -16,6 +16,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Supabase local
 supabase/.branches
@@ -51,5 +52,5 @@ next-env.d.ts
 .turbo/
 .vercel/
 
-# Activos origen del propietario (incluye fotos de pacientes sin consentimiento publicado) — solo local
+# Activos origen del propietario (incluye fotos de pacientes sin consentimiento publicado) ï¿½ solo local
 Imagenes/
